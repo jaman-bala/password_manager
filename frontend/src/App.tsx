@@ -1,0 +1,238 @@
+import React, { useState } from 'react';
+import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User } from 'lucide-react';
+import { PasswordTable } from './components/PasswordTable';
+import { PasswordForm } from './components/PasswordForm';
+import { SearchBar } from './components/SearchBar';
+import { Login } from './components/Login';
+import { usePasswordAPI } from './hooks/usePasswordAPI';
+import { useAuth } from './hooks/useAuth';
+import { PasswordEntry, PasswordFormData } from './types/Password';
+
+function App() {
+  const { isAuthenticated, user, logout, isLoading: authLoading } = useAuth();
+  const { entries, loading, error, addEntry, updateEntry, deleteEntry, searchEntries } = usePasswordAPI();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Показываем загрузку или форму входа
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/40 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  const filteredEntries = searchEntries(searchQuery);
+
+  const handleFormSubmit = async (data: PasswordFormData) => {
+    if (editingEntry) {
+      const result = await updateEntry(editingEntry.id.toString(), data);
+      if (result.error) {
+        alert(`Ошибка обновления: ${result.error}`);
+        return;
+      }
+    } else {
+      const result = await addEntry(data);
+      if (result.error) {
+        alert(`Ошибка создания: ${result.error}`);
+        return;
+      }
+    }
+    setIsFormOpen(false);
+    setEditingEntry(null);
+  };
+
+  const handleEdit = (entry: PasswordEntry) => {
+    setEditingEntry(entry);
+    setIsFormOpen(true);
+  };
+
+  const handleFormCancel = () => {
+    setIsFormOpen(false);
+    setEditingEntry(null);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Вы уверены, что хотите удалить эту запись?')) {
+      const result = await deleteEntry(id.toString());
+      if (result.error) {
+        alert(`Ошибка удаления: ${result.error}`);
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/40 relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-violet-400/10 to-pink-600/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+      
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Header */}
+        <div className="text-center mb-16 relative">
+          {/* User info and logout button */}
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3 text-gray-600">
+              <User size={20} />
+              <span className="font-medium">Добро пожаловать, {user?.fio || user?.username}</span>
+            </div>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
+            >
+              <LogOut size={18} />
+              <span>Выйти</span>
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-lg opacity-75 animate-pulse"></div>
+              <div className="relative p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-300">
+                <Shield className="text-white" size={40} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="text-blue-500 animate-spin" size={24} />
+              <h1 className="text-5xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+              Password Manager
+              </h1>
+              <Sparkles className="text-purple-500 animate-spin" size={24} />
+            </div>
+          </div>
+          <p className="text-gray-600 text-xl max-w-3xl mx-auto leading-relaxed font-medium">
+            Безопасное хранение и управление вашими паролями с современным интерфейсом
+          </p>
+          <div className="flex items-center justify-center gap-8 mt-8 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <Lock size={16} className="text-green-500" />
+              <span>256-bit шифрование</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Key size={16} className="text-blue-500" />
+              <span>Локальное хранение</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield size={16} className="text-purple-500" />
+              <span>Полная приватность</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 animate-fade-in">
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-lg">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="text-red-500" size={20} />
+                <p className="text-red-700 font-medium">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading Indicator */}
+        {loading && (
+          <div className="mb-6 animate-fade-in">
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <p className="text-blue-700 font-medium">Загрузка данных...</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row gap-6 mb-10">
+          <div className="flex-1">
+            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+          </div>
+          <button
+            onClick={() => setIsFormOpen(true)}
+            disabled={loading}
+            className="group relative bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 font-semibold shadow-2xl shadow-blue-600/30 hover:shadow-blue-600/50 transform hover:scale-105 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-white/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <Plus size={22} className="group-hover:rotate-90 transition-transform duration-300" />
+            Добавить пароль
+          </button>
+        </div>
+
+        {/* Results count */}
+        {searchQuery && (
+          <div className="mb-8 animate-fade-in">
+            <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+              <p className="text-gray-700 font-medium">
+              Найдено записей: <span className="font-medium">{filteredEntries.length}</span>
+              {searchQuery && (
+                <span className="ml-2">
+                  по запросу "<span className="font-medium">{searchQuery}</span>"
+                </span>
+              )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <PasswordTable
+          entries={filteredEntries}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+
+        {/* Statistics */}
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <div className="group bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-gray-200/50 text-center hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+              <Shield className="text-white" size={28} />
+            </div>
+            <div className="text-3xl font-black text-blue-600 mb-2 group-hover:scale-110 transition-transform duration-300">
+              {entries.length}
+            </div>
+            <div className="text-gray-600 font-medium">Всего паролей</div>
+          </div>
+          <div className="group bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-gray-200/50 text-center hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+              <Key className="text-white" size={28} />
+            </div>
+            <div className="text-3xl font-black text-green-600 mb-2 group-hover:scale-110 transition-transform duration-300">
+              {entries.filter(e => e.url).length}
+            </div>
+            <div className="text-gray-600 font-medium">С URL</div>
+          </div>
+          <div className="group bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-gray-200/50 text-center hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
+              <Lock className="text-white" size={28} />
+            </div>
+            <div className="text-3xl font-black text-purple-600 mb-2 group-hover:scale-110 transition-transform duration-300">
+              {entries.filter(e => e.description).length}
+            </div>
+            <div className="text-gray-600 font-medium">С описанием</div>
+          </div>
+        </div>
+
+        {/* Form Modal */}
+        {isFormOpen && (
+          <PasswordForm
+            entry={editingEntry}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
