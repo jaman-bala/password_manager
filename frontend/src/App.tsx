@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User } from 'lucide-react';
+import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User, LayoutGrid, Table2, Sun, Moon } from 'lucide-react';
 import { PasswordTable } from './components/PasswordTable';
 import { PasswordForm } from './components/PasswordForm';
 import { SearchBar } from './components/SearchBar';
 import { CategoryManager } from './components/CategoryManager';
 import { Login } from './components/Login';
+import { ToastContainer, Toast, ToastType } from './components/Toast';
 import { usePasswordAPI } from './hooks/usePasswordAPI';
 import { useAuth } from './hooks/useAuth';
 import { PasswordEntry, PasswordFormData } from './types/Password';
@@ -16,6 +17,31 @@ function App() {
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [isDark, setIsDark] = useState(() => {
+    // Проверяем localStorage или системные предпочтения
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  // Toast helper
+  const showToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Переключение темы
+  const toggleTheme = () => {
+    const newTheme = !isDark;
+    setIsDark(newTheme);
+    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+  };
 
   // Показываем загрузку или форму входа
   if (authLoading) {
@@ -41,15 +67,17 @@ function App() {
     if (editingEntry) {
       const result = await updateEntry(editingEntry.id.toString(), data);
       if (result.error) {
-        alert(`Ошибка обновления: ${result.error}`);
+        showToast(`Ошибка обновления: ${result.error}`, 'error');
         return;
       }
+      showToast('Запись успешно обновлена!', 'success');
     } else {
       const result = await addEntry(data);
       if (result.error) {
-        alert(`Ошибка создания: ${result.error}`);
+        showToast(`Ошибка создания: ${result.error}`, 'error');
         return;
       }
+      showToast('Пароль успешно добавлен!', 'success');
     }
     setIsFormOpen(false);
     setEditingEntry(null);
@@ -69,7 +97,9 @@ function App() {
     if (window.confirm('Вы уверены, что хотите удалить эту запись?')) {
       const result = await deleteEntry(id.toString());
       if (result.error) {
-        alert(`Ошибка удаления: ${result.error}`);
+        showToast(`Ошибка удаления: ${result.error}`, 'error');
+      } else {
+        showToast('Запись удалена', 'success');
       }
     }
   };
@@ -92,7 +122,11 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/40 relative overflow-hidden">
+    <div className={`min-h-screen relative overflow-hidden transition-colors duration-300 ${
+      isDark
+        ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white'
+        : 'bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/40'
+    }`}>
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-600/20 rounded-full blur-3xl animate-pulse"></div>
@@ -103,19 +137,37 @@ function App() {
       <div className="container mx-auto px-4 py-8 max-w-screen-3xl">
         {/* Header */}
         <div className="text-center mb-16 relative">
-          {/* User info and logout button */}
+          {/* User info, theme toggle and logout button */}
           <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-3 text-gray-600">
+            <div className={`flex items-center gap-3 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
               <User size={20} />
               <span className="font-medium">Добро пожаловать, {user?.fio || user?.username}</span>
             </div>
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
-            >
-              <LogOut size={18} />
-              <span>Выйти</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-xl transition-all duration-300 ${
+                  isDark
+                    ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+                title={isDark ? 'Светлая тема' : 'Тёмная тема'}
+              >
+                {isDark ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+              <button
+                onClick={logout}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
+                  isDark
+                    ? 'text-gray-300 hover:text-red-400 hover:bg-red-500/10'
+                    : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                }`}
+              >
+                <LogOut size={18} />
+                <span>Выйти</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-center gap-4 mb-6">
@@ -181,6 +233,31 @@ function App() {
           <div className="flex-1">
             <SearchBar value={searchQuery} onChange={setSearchQuery} />
           </div>
+          {/* View Mode Toggle */}
+          <div className="flex bg-white/80 backdrop-blur-sm rounded-2xl p-1 shadow-lg border border-gray-200/50">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all ${
+                viewMode === 'table'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <Table2 size={18} />
+              <span className="hidden sm:inline">Таблица</span>
+            </button>
+            <button
+              onClick={() => setViewMode('card')}
+              className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all ${
+                viewMode === 'card'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              <LayoutGrid size={18} />
+              <span className="hidden sm:inline">Карточки</span>
+            </button>
+          </div>
           <CategoryManager
             categories={categories}
             onCreateCategory={handleCreateCategory}
@@ -220,12 +297,19 @@ function App() {
           </div>
         )}
 
-        {/* Table */}
+        {/* Table / Card View */}
         <PasswordTable
           entries={filteredEntries}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onAddNew={() => setIsFormOpen(true)}
+          viewMode={viewMode}
+          onCopy={() => showToast('Скопировано в буфер обмена!', 'success')}
+          isDark={isDark}
         />
+
+        {/* Toast Notifications */}
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
 
         {/* Statistics */}
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8">

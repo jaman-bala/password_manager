@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Save, X } from 'lucide-react';
+import { Eye, EyeOff, Save, X, RefreshCw, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { PasswordEntry, PasswordFormData, Category } from '../types/Password';
 
 interface PasswordFormProps {
@@ -68,6 +68,66 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
+  };
+
+  // Генератор паролей
+  const generatePassword = (length: number = 16) => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+    const all = uppercase + lowercase + numbers + symbols;
+
+    let password = '';
+    // Гарантируем минимум по одному из каждого типа
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += symbols[Math.floor(Math.random() * symbols.length)];
+
+    // Остальные символы
+    for (let i = 4; i < length; i++) {
+      password += all[Math.floor(Math.random() * all.length)];
+    }
+
+    // Перемешиваем
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+    handleChange('password', password);
+  };
+
+  // Оценка сложности пароля
+  const getPasswordStrength = (password: string): { score: number; label: string; color: string } => {
+    if (!password) return { score: 0, label: 'Пусто', color: 'gray' };
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^a-zA-Z0-9]/.test(password)) score++;
+
+    const levels = [
+      { label: 'Очень слабый', color: 'red' },
+      { label: 'Слабый', color: 'orange' },
+      { label: 'Средний', color: 'yellow' },
+      { label: 'Хороший', color: 'blue' },
+      { label: 'Отличный', color: 'green' },
+      { label: 'Надёжный', color: 'emerald' },
+    ];
+
+    return { score, ...levels[Math.min(score, 5)] };
+  };
+
+  const strength = getPasswordStrength(formData.password || '');
+  const strengthColors: Record<string, string> = {
+    gray: 'bg-gray-200',
+    red: 'bg-red-500',
+    orange: 'bg-orange-500',
+    yellow: 'bg-yellow-500',
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    emerald: 'bg-emerald-500',
   };
 
   return (
@@ -142,18 +202,60 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => handleChange('password', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12 ${errors.password ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-24 ${errors.password ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
                   }`}
                 placeholder="Ваш пароль"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-all duration-300 p-2 rounded-xl hover:bg-blue-50 hover:scale-110"
-              >
-                {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
-              </button>
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => generatePassword()}
+                  className="text-gray-400 hover:text-green-600 transition-all duration-300 p-2 rounded-xl hover:bg-green-50 hover:scale-110"
+                  title="Сгенерировать пароль"
+                >
+                  <RefreshCw size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-blue-600 transition-all duration-300 p-2 rounded-xl hover:bg-blue-50 hover:scale-110"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
+            {/* Индикатор сложности пароля */}
+            {formData.password && (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {strength.score >= 4 ? <ShieldCheck size={16} className="text-emerald-500" /> :
+                     strength.score >= 3 ? <Shield size={16} className="text-blue-500" /> :
+                     <ShieldAlert size={16} className="text-red-500" />}
+                    <span className={`text-sm font-medium ${
+                      strength.color === 'red' ? 'text-red-600' :
+                      strength.color === 'orange' ? 'text-orange-600' :
+                      strength.color === 'yellow' ? 'text-yellow-600' :
+                      strength.color === 'blue' ? 'text-blue-600' :
+                      'text-emerald-600'
+                    }`}>
+                      {strength.label}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-400">{formData.password.length} симв.</span>
+                </div>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                        i <= strength.score ? strengthColors[strength.color] : 'bg-gray-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             {errors.password && <p className="text-red-500 text-sm mt-2 font-medium animate-shake">{errors.password}</p>}
           </div>
 
