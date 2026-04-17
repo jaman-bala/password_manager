@@ -1,3 +1,25 @@
+#!/bin/sh
+set -e
+
+DB_HOST=${DB_HOST:-postgres}
+DB_PORT=${DB_PORT:-5432}
+
+echo "Waiting for database at $DB_HOST:$DB_PORT..."
+until nc -z "$DB_HOST" "$DB_PORT"; do
+  sleep 1
+done
+echo "Database is ready!"
+
+cd /app/src || exit 1
+
+echo "Running migrations..."
+python manage.py migrate
+
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
+
+echo "Starting server..."
+exec "$@"
 #!/bin/bash
 
 # Wait for database to be ready

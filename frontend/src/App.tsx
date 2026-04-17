@@ -3,6 +3,7 @@ import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User } from 'lu
 import { PasswordTable } from './components/PasswordTable';
 import { PasswordForm } from './components/PasswordForm';
 import { SearchBar } from './components/SearchBar';
+import { CategoryManager } from './components/CategoryManager';
 import { Login } from './components/Login';
 import { usePasswordAPI } from './hooks/usePasswordAPI';
 import { useAuth } from './hooks/useAuth';
@@ -10,10 +11,11 @@ import { PasswordEntry, PasswordFormData } from './types/Password';
 
 function App() {
   const { isAuthenticated, user, logout, isLoading: authLoading } = useAuth();
-  const { entries, loading, error, addEntry, updateEntry, deleteEntry, searchEntries } = usePasswordAPI();
+  const { entries, categories, loading, error, addEntry, updateEntry, deleteEntry, searchEntries, createCategory, deleteCategory } = usePasswordAPI();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
   // Показываем загрузку или форму входа
   if (authLoading) {
@@ -28,7 +30,12 @@ function App() {
     return <Login />;
   }
 
-  const filteredEntries = searchEntries(searchQuery);
+  let filteredEntries = searchEntries(searchQuery);
+
+  // Фильтруем по выбранной категории
+  if (selectedCategoryId !== null) {
+    filteredEntries = filteredEntries.filter(entry => entry.category?.id === selectedCategoryId);
+  }
 
   const handleFormSubmit = async (data: PasswordFormData) => {
     if (editingEntry) {
@@ -67,6 +74,23 @@ function App() {
     }
   };
 
+  const handleCreateCategory = async (name: string) => {
+    const result = await createCategory(name);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    const result = await deleteCategory(id);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    if (selectedCategoryId === id) {
+      setSelectedCategoryId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-100/40 relative overflow-hidden">
       {/* Background decorative elements */}
@@ -75,8 +99,8 @@ function App() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/20 to-cyan-600/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-violet-400/10 to-pink-600/10 rounded-full blur-3xl animate-pulse delay-500"></div>
       </div>
-      
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+
+      <div className="container mx-auto px-4 py-8 max-w-screen-3xl">
         {/* Header */}
         <div className="text-center mb-16 relative">
           {/* User info and logout button */}
@@ -93,7 +117,7 @@ function App() {
               <span>Выйти</span>
             </button>
           </div>
-          
+
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur-lg opacity-75 animate-pulse"></div>
@@ -104,7 +128,7 @@ function App() {
             <div className="flex items-center gap-2">
               <Sparkles className="text-blue-500 animate-spin" size={24} />
               <h1 className="text-5xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
-              Password Manager
+                Password Manager
               </h1>
               <Sparkles className="text-purple-500 animate-spin" size={24} />
             </div>
@@ -157,10 +181,17 @@ function App() {
           <div className="flex-1">
             <SearchBar value={searchQuery} onChange={setSearchQuery} />
           </div>
+          <CategoryManager
+            categories={categories}
+            onCreateCategory={handleCreateCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onSelectCategory={(category) => setSelectedCategoryId(category ? category.id : null)}
+            selectedCategoryId={selectedCategoryId}
+          />
           <button
             onClick={() => setIsFormOpen(true)}
             disabled={loading}
-            className="group relative bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 font-semibold shadow-2xl shadow-blue-600/30 hover:shadow-blue-600/50 transform hover:scale-105 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="group relative bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 font-semibold shadow-2xl shadow-blue-600/30 hover:shadow-blue-600/50 transform hover:scale-105 hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none min-w-[220px]"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-white/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <Plus size={22} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -169,16 +200,21 @@ function App() {
         </div>
 
         {/* Results count */}
-        {searchQuery && (
+        {(searchQuery || selectedCategoryId) && (
           <div className="mb-8 animate-fade-in">
             <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl p-4 shadow-lg">
               <p className="text-gray-700 font-medium">
-              Найдено записей: <span className="font-medium">{filteredEntries.length}</span>
-              {searchQuery && (
-                <span className="ml-2">
-                  по запросу "<span className="font-medium">{searchQuery}</span>"
-                </span>
-              )}
+                Найдено записей: <span className="font-medium">{filteredEntries.length}</span>
+                {searchQuery && (
+                  <span className="ml-2">
+                    по запросу "<span className="font-medium">{searchQuery}</span>"
+                  </span>
+                )}
+                {selectedCategoryId && categories.find(c => c.id === selectedCategoryId) && (
+                  <span className="ml-2">
+                    в категории "<span className="font-medium">{categories.find(c => c.id === selectedCategoryId)?.name}</span>"
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -216,9 +252,9 @@ function App() {
               <Lock className="text-white" size={28} />
             </div>
             <div className="text-3xl font-black text-purple-600 mb-2 group-hover:scale-110 transition-transform duration-300">
-              {entries.filter(e => e.description).length}
+              {categories.length}
             </div>
-            <div className="text-gray-600 font-medium">С описанием</div>
+            <div className="text-gray-600 font-medium">Категорий</div>
           </div>
         </div>
 
@@ -226,6 +262,7 @@ function App() {
         {isFormOpen && (
           <PasswordForm
             entry={editingEntry}
+            categories={categories}
             onSubmit={handleFormSubmit}
             onCancel={handleFormCancel}
           />

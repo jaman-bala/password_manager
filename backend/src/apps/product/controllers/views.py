@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from config.ninja_auth import jwt_auth
 
 from apps.product.models.models import ProductOrm, CategoryOrm
-from apps.product.dto.schema import ProductDTO, CategoryDTO, ProductCreateDTO
+from apps.product.dto.schema import ProductDTO, CategoryDTO, ProductCreateDTO, CategoryCreateDTO
 
 router = Router()
 User = get_user_model()
@@ -16,6 +16,31 @@ def get_categories(request):
     """Получить все категории товаров"""
     categories = CategoryOrm.objects.all()
     return categories
+
+
+@router.post("/categories", response=CategoryDTO, tags=["Категории"])
+def create_category(request, data: CategoryCreateDTO):
+    """Создать новую категорию"""
+    name = data.name.strip()
+    if not name:
+        raise ValueError("Название категории не может быть пустым")
+    
+    category = CategoryOrm.objects.create(name=name)
+    return category
+
+
+@router.delete("/categories/{category_id}", tags=["Категории"])
+def delete_category(request, category_id: int):
+    """Удалить категорию"""
+    try:
+        category = CategoryOrm.objects.get(id=category_id)
+        # Удаляем категорию из всех продуктов
+        ProductOrm.objects.filter(category=category).update(category=None)
+        category.delete()
+        return {"success": True, "message": "Category deleted successfully"}
+    except CategoryOrm.DoesNotExist:
+        raise Http404("Category not found")
+
 
 @router.get("/products", response=list[ProductDTO], tags=["Продукты"], auth=jwt_auth)
 def get_products(request):

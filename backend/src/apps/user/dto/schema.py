@@ -58,3 +58,7 @@ class TokenVerifyResponseSchema(Schema):
 class LogoutSchema(Schema):
     """Schema for logout request"""
     refresh: str
+
+class RefreshTokenSchema(Schema):
+    """Schema for token refresh request"""
+    refresh: str

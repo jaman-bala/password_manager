@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { PasswordEntry, PasswordFormData } from '../types/Password';
+import { PasswordEntry, PasswordFormData, Category } from '../types/Password';
 import { useAuth } from './useAuth';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8002';
 
 interface APIResponse<T> {
   data?: T;
@@ -12,6 +12,7 @@ interface APIResponse<T> {
 export const usePasswordAPI = () => {
   const { accessToken, refreshAccessToken } = useAuth();
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,12 +21,81 @@ export const usePasswordAPI = () => {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    
+
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
-    
+
     return headers;
+  };
+
+  // Загрузить все категории
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/index/categories`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setCategories(data);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
+
+  // Создать новую категорию
+  const createCategory = async (name: string): Promise<APIResponse<Category>> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/index/categories`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setCategories(prev => [...prev, result]);
+      return { data: result };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Ошибка создания категории';
+      setError(errorMessage);
+      return { error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Удалить категорию
+  const deleteCategory = async (id: number): Promise<APIResponse<boolean>> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/index/categories/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setCategories(prev => prev.filter(cat => cat.id !== id));
+      return { data: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Ошибка удаления категории';
+      setError(errorMessage);
+      return { error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Загрузить все пароли
@@ -36,7 +106,7 @@ export const usePasswordAPI = () => {
       const response = await fetch(`${API_BASE_URL}/api/index/products`, {
         headers: getAuthHeaders(),
       });
-      
+
       if (response.status === 401) {
         // Попробуем обновить токен
         const refreshed = await refreshAccessToken();
@@ -56,15 +126,15 @@ export const usePasswordAPI = () => {
           throw new Error('Authentication failed');
         }
       }
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      
+
       // Данные уже в правильном формате
       const formattedEntries: PasswordEntry[] = data;
-      
+
       setEntries(formattedEntries);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
@@ -90,7 +160,7 @@ export const usePasswordAPI = () => {
       }
 
       const result = await response.json();
-      
+
       setEntries(prev => [...prev, result]);
       return { data: result };
     } catch (err) {
@@ -118,19 +188,19 @@ export const usePasswordAPI = () => {
       }
 
       const result = await response.json();
-      
+
       setEntries(prev => {
-        const updated = prev.map(entry => 
+        const updated = prev.map(entry =>
           entry.id === parseInt(id) ? result : entry
         );
         return updated;
       });
-      
+
       // Дополнительно обновляем список через fetch для гарантии
       setTimeout(() => {
         fetchEntries();
       }, 100);
-      
+
       return { data: result };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка обновления записи';
@@ -169,13 +239,13 @@ export const usePasswordAPI = () => {
   // Поиск паролей
   const searchEntries = (query: string): PasswordEntry[] => {
     if (!query) return entries;
-    
+
     const lowercaseQuery = query.toLowerCase();
     return entries.filter(entry =>
       entry.title.toLowerCase().includes(lowercaseQuery) ||
       entry.login.toLowerCase().includes(lowercaseQuery) ||
       (entry.url && entry.url.toLowerCase().includes(lowercaseQuery)) ||
-      (entry.description && entry.description.toLowerCase().includes(lowercaseQuery))
+      (entry.notes && entry.notes.toLowerCase().includes(lowercaseQuery))
     );
   };
 
@@ -184,17 +254,23 @@ export const usePasswordAPI = () => {
     // Загружаем данные только если пользователь аутентифицирован
     if (accessToken) {
       fetchEntries();
+      fetchCategories();
     }
   }, [accessToken]);
 
   return {
     entries,
+    categories,
     loading,
     error,
     addEntry,
     updateEntry,
     deleteEntry,
     searchEntries,
-    refreshEntries: fetchEntries
+    refreshEntries: fetchEntries,
+    fetchCategories,
+    createCategory,
+    deleteCategory
   };
 };
+

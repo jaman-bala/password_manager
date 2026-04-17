@@ -1,7 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { LoginData, User, AuthResponse, RefreshResponse, AuthState } from '../types/Auth';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8002';
 
 interface AuthContextType extends AuthState {
   login: (data: LoginData) => Promise<{ success: boolean; error?: string }>;

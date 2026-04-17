@@ -1,3 +1,10 @@
+export interface Category {
+  id: number;
+  name: string;
+  created_at: string;
+  edited_at: string;
+}
+
 export interface PasswordEntry {
   id: number;
   title?: string;
@@ -7,10 +14,7 @@ export interface PasswordEntry {
   notes?: string;
   created_at: string;
   updated_at: string;
-  category?: {
-    id: number;
-    name: string;
-  };
+  category?: Category;
 }
 
 export interface PasswordFormData {

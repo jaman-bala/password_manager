@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Save, X } from 'lucide-react';
-import { PasswordEntry, PasswordFormData } from '../types/Password';
+import { PasswordEntry, PasswordFormData, Category } from '../types/Password';
 
 interface PasswordFormProps {
   entry?: PasswordEntry | null;
+  categories: Category[];
   onSubmit: (data: PasswordFormData) => void;
   onCancel: () => void;
 }
 
 export const PasswordForm: React.FC<PasswordFormProps> = ({
   entry,
+  categories,
   onSubmit,
   onCancel
 }) => {
@@ -18,7 +20,8 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
     url: '',
     login: '',
     password: '',
-    notes: ''
+    notes: '',
+    category_id: undefined
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<PasswordFormData>>({});
@@ -30,7 +33,8 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
         url: entry.url || '',
         login: entry.login || '',
         password: entry.password || '',
-        notes: entry.notes || ''
+        notes: entry.notes || '',
+        category_id: entry.category?.id
       });
     }
   }, [entry]);
@@ -59,7 +63,7 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
     }
   };
 
-  const handleChange = (field: keyof PasswordFormData, value: string) => {
+  const handleChange = (field: keyof PasswordFormData, value: string | number | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
@@ -73,7 +77,7 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
         <div className="flex items-center justify-between mb-6">
           <div className="relative">
             <h2 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
-            {entry ? 'Редактировать запись' : 'Добавить новую запись'}
+              {entry ? 'Редактировать запись' : 'Добавить новую запись'}
             </h2>
             <div className="absolute -bottom-2 left-0 w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
           </div>
@@ -94,9 +98,8 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
               type="text"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                errors.title ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
-              }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${errors.title ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
+                }`}
               placeholder="Например: Gmail, Facebook..."
             />
             {errors.title && <p className="text-red-500 text-sm mt-2 font-medium animate-shake">{errors.title}</p>}
@@ -123,9 +126,8 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
               type="text"
               value={formData.login}
               onChange={(e) => handleChange('login', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                errors.login ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
-              }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${errors.login ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
+                }`}
               placeholder="Ваш логин или email"
             />
             {errors.login && <p className="text-red-500 text-sm mt-2 font-medium animate-shake">{errors.login}</p>}
@@ -140,9 +142,8 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => handleChange('password', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12 ${
-                  errors.password ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
-                }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-12 ${errors.password ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
+                  }`}
                 placeholder="Ваш пароль"
               />
               <button
@@ -154,6 +155,24 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
               </button>
             </div>
             {errors.password && <p className="text-red-500 text-sm mt-2 font-medium animate-shake">{errors.password}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+              Категория
+            </label>
+            <select
+              value={formData.category_id || ''}
+              onChange={(e) => handleChange('category_id', e.target.value ? parseInt(e.target.value) : undefined)}
+              className="w-full px-4 py-3 border border-gray-200 bg-white/80 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+            >
+              <option value="">Без категории</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

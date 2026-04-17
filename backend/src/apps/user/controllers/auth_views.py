@@ -11,8 +11,9 @@ from django.utils.decorators import method_decorator
 from django.views import View
 import json
 from config.ninja_auth import jwt_auth
+from ninja.errors import HttpError
 
-from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutSchema
+from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutSchema, RefreshTokenSchema
 
 router = Router()
 
@@ -39,17 +40,17 @@ def login(request, data: LoginDTO):
                 }
             }
         else:
-            return {"error": "Аккаунт деактивирован"}, 400
+            raise HttpError(400, "Аккаунт деактивирован")
     else:
-        return {"error": "Неверные учетные данные"}, 401
+        raise HttpError(401, "Неверные учетные данные")
 
 @router.post("/refresh", tags=["Аутентификация"])
-def refresh_token(request, data: dict):
+def refresh_token(request, data: RefreshTokenSchema):
     """Обновление токена"""
     try:
-        refresh_token = data.get("refresh")
+        refresh_token = data.refresh
         if not refresh_token:
-            return {"error": "Refresh token не предоставлен"}, 400
+            raise HttpError(400, "Refresh token не предоставлен")
             
         serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
@@ -58,9 +59,11 @@ def refresh_token(request, data: dict):
             "access": serializer.validated_data["access"]
         }
     except (InvalidToken, TokenError) as e:
-        return {"error": "Недействительный refresh token"}, 401
+        raise HttpError(401, "Недействительный refresh token")
+    except HttpError:
+        raise
     except Exception as e:
-        return {"error": "Ошибка обновления токена"}, 500
+        raise HttpError(500, "Ошибка обновления токена")
 
 @router.post("/logout", tags=["Аутентификация"])
 def logout(request, data: LogoutSchema):
@@ -72,7 +75,7 @@ def logout(request, data: LogoutSchema):
             token.blacklist()
         return {"message": "Успешный выход из системы"}
     except Exception as e:
-        return {"error": "Ошибка выхода из системы"}, 500
+        raise HttpError(500, "Ошибка выхода из системы")
 
 @router.get("/me", response=UserDTO, tags=["Аутентификация"], auth=jwt_auth)
 def get_current_user(request):

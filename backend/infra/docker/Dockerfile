@@ -38,12 +38,13 @@ RUN adduser -D -u 1000 appuser
 
 # Copy project files
 COPY . .
+COPY infra/docker/entrypoint.sh ./entrypoint.sh
 
 # Create directories and set permissions
 RUN mkdir -p /app/src/staticfiles /app/src/media/product_images /app/src/media/category_images && \
     chown -R appuser:appuser /app && \
     chmod -R 755 /app/src/staticfiles && \
-    chmod -R 777 /app/src/media  # Более открытые права для записи файлов
+    chmod -R 777 /app/src/media
 
 # Switch to app user
 USER appuser
@@ -51,5 +52,9 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
+# Make entrypoint executable and set it
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["sh", "/app/entrypoint.sh"]
+
 # Start command
-CMD ["python", "src/manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
