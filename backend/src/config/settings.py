@@ -188,7 +188,7 @@ FILE_UPLOAD_HANDLERS = [
 ]
 
 # Автоматически создаем папки для медиа файлов
-import os
+
 os.makedirs(os.path.join(MEDIA_ROOT, 'product_images'), exist_ok=True)
 os.makedirs(os.path.join(MEDIA_ROOT, 'category_images'), exist_ok=True)
 
@@ -291,6 +291,7 @@ UNFOLD = {
                 "en": "🇬🇧",
                 "fr": "🇫🇷",
                 "nl": "🇧🇪",
+                "kg": "🇰🇬",
             },
         },
     },
