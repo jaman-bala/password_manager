@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from config.ninja_auth import jwt_auth
 
 from apps.product.models.models import ProductOrm, CategoryOrm
-from apps.product.dto.schema import ProductDTO, CategoryDTO, ProductCreateDTO, CategoryCreateDTO
+from apps.product.dto.schema import ProductDTO, CategoryDTO, ProductCreateDTO, CategoryCreateDTO, PaginatedProductsResponseSchema
 
 router = Router()
 User = get_user_model()
@@ -42,11 +42,28 @@ def delete_category(request, category_id: int):
         raise Http404("Category not found")
 
 
-@router.get("/products", response=list[ProductDTO], tags=["Продукты"], auth=jwt_auth)
-def get_products(request):
-    """Получить все продукты пользователя"""
+@router.get("/products", response=PaginatedProductsResponseSchema, tags=["Продукты"], auth=jwt_auth)
+def get_products(request, page: int = 1, limit: int = 20, search: str = ""):
+    """Получить продукты пользователя с пагинацией"""
     qs = ProductOrm.objects.filter(user=request.user)
-    return qs
+
+    if search:
+        qs = qs.filter(title__icontains=search) | qs.filter(login__icontains=search) | qs.filter(url__icontains=search)
+
+    total = qs.count()
+    total_pages = (total + limit - 1) // limit
+    start = (page - 1) * limit
+    end = start + limit
+
+    items = qs[start:end]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages
+    }
 
 @router.get("/products/{product_id}", response=ProductDTO, tags=["Продукты"], auth=jwt_auth)
 def get_product(request, product_id: int):

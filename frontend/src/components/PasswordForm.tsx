@@ -7,13 +7,15 @@ interface PasswordFormProps {
   categories: Category[];
   onSubmit: (data: PasswordFormData) => void;
   onCancel: () => void;
+  isDark?: boolean;
 }
 
 export const PasswordForm: React.FC<PasswordFormProps> = ({
   entry,
   categories,
   onSubmit,
-  onCancel
+  onCancel,
+  isDark = false
 }) => {
   const [formData, setFormData] = useState<PasswordFormData>({
     title: '',
@@ -28,6 +30,7 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
 
   useEffect(() => {
     if (entry) {
+      // Редактирование - заполняем данными
       setFormData({
         title: entry.title || '',
         url: entry.url || '',
@@ -36,7 +39,20 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
         notes: entry.notes || '',
         category_id: entry.category?.id
       });
+    } else {
+      // Создание - сбрасываем форму
+      setFormData({
+        title: '',
+        url: '',
+        login: '',
+        password: '',
+        notes: '',
+        category_id: undefined
+      });
     }
+    // Сбрасываем ошибки при открытии
+    setErrors({});
+    setShowPassword(false);
   }, [entry]);
 
   const validateForm = (): boolean => {
@@ -132,18 +148,30 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-white/95 backdrop-blur-xl rounded-3xl p-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200/50 transform animate-scale-in">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-3xl"></div>
+      <div className={`rounded-3xl p-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border transform animate-scale-in ${
+        isDark
+          ? 'bg-slate-800/95 backdrop-blur-xl border-slate-700/50'
+          : 'bg-white/95 backdrop-blur-xl border-gray-200/50'
+      }`}>
+        <div className={`absolute inset-0 rounded-3xl ${
+          isDark ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10' : 'bg-gradient-to-br from-blue-500/5 to-purple-500/5'
+        }`}></div>
         <div className="flex items-center justify-between mb-6">
           <div className="relative">
-            <h2 className="text-3xl font-black bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
+            <h2 className={`text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r ${
+              isDark ? 'from-gray-100 to-blue-400' : 'from-gray-900 to-blue-800'
+            }`}>
               {entry ? 'Редактировать запись' : 'Добавить новую запись'}
             </h2>
             <div className="absolute -bottom-2 left-0 w-16 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
           </div>
           <button
             onClick={onCancel}
-            className="p-3 text-gray-400 hover:text-red-500 transition-all duration-300 rounded-2xl hover:bg-red-50 transform hover:scale-110 hover:rotate-90"
+            className={`p-3 transition-all duration-300 rounded-2xl transform hover:scale-110 hover:rotate-90 ${
+              isDark
+                ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
+                : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+            }`}
           >
             <X size={28} />
           </button>
@@ -151,50 +179,64 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-8 relative">
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
               Название *
             </label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => handleChange('title', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${errors.title ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                errors.title
+                  ? 'border-red-500 bg-red-50/50'
+                  : isDark
+                    ? 'border-slate-600 bg-slate-700/80 text-white placeholder-slate-400'
+                    : 'border-gray-200 bg-white/80'
+              }`}
               placeholder="Например: Gmail, Facebook..."
             />
             {errors.title && <p className="text-red-500 text-sm mt-2 font-medium animate-shake">{errors.title}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
               URL
             </label>
             <input
               type="url"
               value={formData.url}
               onChange={(e) => handleChange('url', e.target.value)}
-              className="w-full px-6 py-4 border border-gray-200 bg-white/80 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
+              className={`w-full px-6 py-4 border rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-300 font-medium shadow-lg hover:shadow-xl ${
+                isDark
+                  ? 'border-slate-600 bg-slate-700/80 text-white placeholder-slate-400'
+                  : 'border-gray-200 bg-white/80'
+              }`}
               placeholder="https://example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
               Логин *
             </label>
             <input
               type="text"
               value={formData.login}
               onChange={(e) => handleChange('login', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${errors.login ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
-                }`}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                errors.login
+                  ? 'border-red-500 bg-red-50/50'
+                  : isDark
+                    ? 'border-slate-600 bg-slate-700/80 text-white placeholder-slate-400'
+                    : 'border-gray-200 bg-white/80'
+              }`}
               placeholder="Ваш логин или email"
             />
             {errors.login && <p className="text-red-500 text-sm mt-2 font-medium animate-shake">{errors.login}</p>}
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
               Пароль *
             </label>
             <div className="relative">
@@ -202,15 +244,24 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
                 onChange={(e) => handleChange('password', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-24 ${errors.password ? 'border-red-500 bg-red-50/50' : 'border-gray-200 bg-white/80'
-                  }`}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-24 ${
+                  errors.password
+                    ? 'border-red-500 bg-red-50/50'
+                    : isDark
+                      ? 'border-slate-600 bg-slate-700/80 text-white placeholder-slate-400'
+                      : 'border-gray-200 bg-white/80'
+                }`}
                 placeholder="Ваш пароль"
               />
               <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => generatePassword()}
-                  className="text-gray-400 hover:text-green-600 transition-all duration-300 p-2 rounded-xl hover:bg-green-50 hover:scale-110"
+                  className={`transition-all duration-300 p-2 rounded-xl hover:scale-110 ${
+                    isDark
+                      ? 'text-slate-400 hover:text-green-400 hover:bg-green-500/10'
+                      : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                  }`}
                   title="Сгенерировать пароль"
                 >
                   <RefreshCw size={18} />
@@ -218,7 +269,11 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-blue-600 transition-all duration-300 p-2 rounded-xl hover:bg-blue-50 hover:scale-110"
+                  className={`transition-all duration-300 p-2 rounded-xl hover:scale-110 ${
+                    isDark
+                      ? 'text-slate-400 hover:text-blue-400 hover:bg-blue-500/10'
+                      : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                  }`}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -249,7 +304,7 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
                     <div
                       key={i}
                       className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                        i <= strength.score ? strengthColors[strength.color] : 'bg-gray-200'
+                        i <= strength.score ? strengthColors[strength.color] : isDark ? 'bg-slate-600' : 'bg-gray-200'
                       }`}
                     />
                   ))}
@@ -260,17 +315,21 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
               Категория
             </label>
             <select
               value={formData.category_id || ''}
               onChange={(e) => handleChange('category_id', e.target.value ? parseInt(e.target.value) : undefined)}
-              className="w-full px-4 py-3 border border-gray-200 bg-white/80 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer ${
+                isDark
+                  ? 'border-slate-600 bg-slate-700/80 text-white'
+                  : 'border-gray-200 bg-white/80'
+              }`}
             >
-              <option value="">Без категории</option>
+              <option value="" className={isDark ? 'bg-slate-700' : ''}>Без категории</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
+                <option key={cat.id} value={cat.id} className={isDark ? 'bg-slate-700' : ''}>
                   {cat.name}
                 </option>
               ))}
@@ -278,14 +337,18 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
               Описание
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => handleChange('notes', e.target.value)}
               rows={3}
-              className="w-full px-6 py-4 border border-gray-200 bg-white/80 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-300 resize-none font-medium shadow-lg hover:shadow-xl"
+              className={`w-full px-6 py-4 border rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-300 resize-none font-medium shadow-lg hover:shadow-xl ${
+                isDark
+                  ? 'border-slate-600 bg-slate-700/80 text-white placeholder-slate-400'
+                  : 'border-gray-200 bg-white/80'
+              }`}
               placeholder="Дополнительная информация..."
             />
           </div>
@@ -301,7 +364,11 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              className="px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-2xl hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 font-bold transform hover:scale-105"
+              className={`px-8 py-4 border-2 rounded-2xl transition-all duration-300 font-bold transform hover:scale-105 ${
+                isDark
+                  ? 'border-slate-500 text-gray-300 hover:bg-slate-700 hover:border-slate-400'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+              }`}
             >
               Отмена
             </button>

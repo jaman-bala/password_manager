@@ -5,6 +5,21 @@ from ninja import Schema
 
 
 
+class PaginationSchema(Schema):
+    """Schema for pagination parameters"""
+    page: int = 1
+    limit: int = 20
+
+
+class PaginatedProductsResponseSchema(Schema):
+    """Schema for paginated products response"""
+    items: list['ProductDTO']
+    total: int
+    page: int
+    limit: int
+    total_pages: int
+
+
 class ProductCreateDTO(Schema):
     category_id: Optional[int] = None
     title: Optional[str] = None

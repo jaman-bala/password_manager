@@ -37,14 +37,35 @@ export const useAuthProvider = () => {
 
       if (accessToken && refreshToken && userStr) {
         try {
-          const user = JSON.parse(userStr);
-          setAuthState({
-            user,
-            accessToken,
-            refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-          });
+          // Проверяем срок действия токена
+          const tokenExpiry = getTokenExpiry(accessToken);
+          const now = Date.now();
+
+          if (tokenExpiry < now) {
+            // Токен истек - пробуем обновить
+            const refreshed = await tryRefreshToken(refreshToken);
+            if (!refreshed) {
+              // Если не удалось обновить - очищаем и выходим
+              localStorage.clear();
+              setAuthState({
+                user: null,
+                accessToken: null,
+                refreshToken: null,
+                isAuthenticated: false,
+                isLoading: false,
+              });
+              return;
+            }
+          } else {
+            const user = JSON.parse(userStr);
+            setAuthState({
+              user,
+              accessToken,
+              refreshToken,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+          }
         } catch (error) {
           console.error('Error parsing user data:', error);
           localStorage.clear();
@@ -57,6 +78,39 @@ export const useAuthProvider = () => {
 
     initAuth();
   }, []);
+
+  const tryRefreshToken = async (refreshToken: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data: RefreshResponse = await response.json();
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+
+      localStorage.setItem('accessToken', data.access);
+      setAuthState({
+        user,
+        accessToken: data.access,
+        refreshToken,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      return true;
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      return false;
+    }
+  };
 
   // Автоматическое обновление токена
   useEffect(() => {

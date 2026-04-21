@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User, LayoutGrid, Table2, Sun, Moon } from 'lucide-react';
 import { PasswordTable } from './components/PasswordTable';
 import { PasswordForm } from './components/PasswordForm';
@@ -6,18 +6,19 @@ import { SearchBar } from './components/SearchBar';
 import { CategoryManager } from './components/CategoryManager';
 import { Login } from './components/Login';
 import { ToastContainer, Toast, ToastType } from './components/Toast';
+import { Pagination } from './components/Pagination';
 import { usePasswordAPI } from './hooks/usePasswordAPI';
 import { useAuth } from './hooks/useAuth';
 import { PasswordEntry, PasswordFormData } from './types/Password';
 
 function App() {
   const { isAuthenticated, user, logout, isLoading: authLoading } = useAuth();
-  const { entries, categories, loading, error, addEntry, updateEntry, deleteEntry, searchEntries, createCategory, deleteCategory } = usePasswordAPI();
+  const { entries, categories, loading, error, addEntry, updateEntry, deleteEntry, searchEntries, createCategory, deleteCategory, page, totalPages, total, limit, goToPage, search } = usePasswordAPI();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('card');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isDark, setIsDark] = useState(() => {
     // Проверяем localStorage или системные предпочтения
@@ -43,6 +44,12 @@ function App() {
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
   };
 
+  // Обработчик поиска с серверной пагинацией
+  const handleSearch = (query: string) => {
+    setLocalSearchQuery(query);
+    search(query);
+  };
+
   // Показываем загрузку или форму входа
   if (authLoading) {
     return (
@@ -56,7 +63,7 @@ function App() {
     return <Login />;
   }
 
-  let filteredEntries = searchEntries(searchQuery);
+  let filteredEntries = searchEntries(localSearchQuery);
 
   // Фильтруем по выбранной категории
   if (selectedCategoryId !== null) {
@@ -231,7 +238,7 @@ function App() {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row gap-6 mb-10">
           <div className="flex-1">
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+            <SearchBar value={localSearchQuery} onChange={handleSearch} />
           </div>
           {/* View Mode Toggle */}
           <div className="flex bg-white/80 backdrop-blur-sm rounded-2xl p-1 shadow-lg border border-gray-200/50">
@@ -264,6 +271,7 @@ function App() {
             onDeleteCategory={handleDeleteCategory}
             onSelectCategory={(category) => setSelectedCategoryId(category ? category.id : null)}
             selectedCategoryId={selectedCategoryId}
+            isDark={isDark}
           />
           <button
             onClick={() => setIsFormOpen(true)}
@@ -277,14 +285,14 @@ function App() {
         </div>
 
         {/* Results count */}
-        {(searchQuery || selectedCategoryId) && (
+        {(localSearchQuery || selectedCategoryId) && (
           <div className="mb-8 animate-fade-in">
             <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl p-4 shadow-lg">
               <p className="text-gray-700 font-medium">
                 Найдено записей: <span className="font-medium">{filteredEntries.length}</span>
-                {searchQuery && (
+                {localSearchQuery && (
                   <span className="ml-2">
-                    по запросу "<span className="font-medium">{searchQuery}</span>"
+                    по запросу "<span className="font-medium">{localSearchQuery}</span>"
                   </span>
                 )}
                 {selectedCategoryId && categories.find(c => c.id === selectedCategoryId) && (
@@ -305,6 +313,16 @@ function App() {
           onAddNew={() => setIsFormOpen(true)}
           viewMode={viewMode}
           onCopy={() => showToast('Скопировано в буфер обмена!', 'success')}
+          isDark={isDark}
+        />
+
+        {/* Pagination */}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={limit}
+          onPageChange={goToPage}
           isDark={isDark}
         />
 
@@ -349,6 +367,7 @@ function App() {
             categories={categories}
             onSubmit={handleFormSubmit}
             onCancel={handleFormCancel}
+            isDark={isDark}
           />
         )}
       </div>
