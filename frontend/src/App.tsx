@@ -13,7 +13,7 @@ import { PasswordEntry, PasswordFormData } from './types/Password';
 
 function App() {
   const { isAuthenticated, user, logout, isLoading: authLoading } = useAuth();
-  const { entries, categories, loading, error, addEntry, updateEntry, deleteEntry, searchEntries, createCategory, deleteCategory, page, totalPages, total, limit, goToPage, search } = usePasswordAPI();
+  const { entries, categories, loading, error, addEntry, updateEntry, deleteEntry, createCategory, deleteCategory, page, totalPages, total, limit, goToPage, search } = usePasswordAPI();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -63,12 +63,11 @@ function App() {
     return <Login />;
   }
 
-  let filteredEntries = searchEntries(localSearchQuery);
-
-  // Фильтруем по выбранной категории
-  if (selectedCategoryId !== null) {
-    filteredEntries = filteredEntries.filter(entry => entry.category?.id === selectedCategoryId);
-  }
+  // Категория теперь фильтруется на сервере (TODO: добавить category в API)
+  // Пока делаем клиентскую фильтрацию по категории
+  let filteredEntries = selectedCategoryId !== null
+    ? entries.filter(entry => entry.category?.id === selectedCategoryId)
+    : entries;
 
   const handleFormSubmit = async (data: PasswordFormData) => {
     if (editingEntry) {
