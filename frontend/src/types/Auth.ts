@@ -24,8 +24,17 @@ export interface RefreshResponse {
 
 export interface AuthState {
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+}
+
+// Deprecated: AuthResponse and RefreshResponse not needed with httpOnly cookies
+export interface AuthResponse {
+  access: string;
+  refresh: string;
+  user: User;
+}
+
+export interface RefreshResponse {
+  access: string;
 }

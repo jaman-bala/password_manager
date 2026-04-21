@@ -1,5 +1,5 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { LoginData, User, AuthResponse, RefreshResponse, AuthState } from '../types/Auth';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
+import { LoginData, User, AuthState } from '../types/Auth';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8002';
 
@@ -20,124 +20,58 @@ export const useAuth = () => {
 };
 
 export const useAuthProvider = () => {
-  const [authState, setAuthState] = useState<AuthState>({
+  const [authState, setAuthState] = useState<Omit<AuthState, 'accessToken' | 'refreshToken'>>({
     user: null,
-    accessToken: null,
-    refreshToken: null,
     isAuthenticated: false,
     isLoading: true,
   });
 
-  // Инициализация при загрузке приложения
+  // Проверяем авторизацию при загрузке
   useEffect(() => {
     const initAuth = async () => {
-      const accessToken = localStorage.getItem('accessToken');
-      const refreshToken = localStorage.getItem('refreshToken');
-      const userStr = localStorage.getItem('user');
+      try {
+        // Пробуем получить текущего пользователя
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+          credentials: 'include',  // Отправляем куки
+        });
 
-      if (accessToken && refreshToken && userStr) {
-        try {
-          // Проверяем срок действия токена
-          const tokenExpiry = getTokenExpiry(accessToken);
-          const now = Date.now();
-
-          if (tokenExpiry < now) {
-            // Токен истек - пробуем обновить
-            const refreshed = await tryRefreshToken(refreshToken);
-            if (!refreshed) {
-              // Если не удалось обновить - очищаем и выходим
-              localStorage.clear();
+        if (response.ok) {
+          const user = await response.json();
+          setAuthState({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } else if (response.status === 401) {
+          // Пробуем обновить токен
+          const refreshed = await refreshAccessToken();
+          if (refreshed) {
+            // Повторяем запрос
+            const retryResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+              credentials: 'include',
+            });
+            if (retryResponse.ok) {
+              const user = await retryResponse.json();
               setAuthState({
-                user: null,
-                accessToken: null,
-                refreshToken: null,
-                isAuthenticated: false,
+                user,
+                isAuthenticated: true,
                 isLoading: false,
               });
               return;
             }
-          } else {
-            const user = JSON.parse(userStr);
-            setAuthState({
-              user,
-              accessToken,
-              refreshToken,
-              isAuthenticated: true,
-              isLoading: false,
-            });
           }
-        } catch (error) {
-          console.error('Error parsing user data:', error);
-          localStorage.clear();
-          setAuthState(prev => ({ ...prev, isLoading: false }));
+          setAuthState({ user: null, isAuthenticated: false, isLoading: false });
+        } else {
+          setAuthState({ user: null, isAuthenticated: false, isLoading: false });
         }
-      } else {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+      } catch (error) {
+        console.error('Auth init error:', error);
+        setAuthState({ user: null, isAuthenticated: false, isLoading: false });
       }
     };
 
     initAuth();
   }, []);
-
-  const tryRefreshToken = async (refreshToken: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const data: RefreshResponse = await response.json();
-      const userStr = localStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
-
-      localStorage.setItem('accessToken', data.access);
-      setAuthState({
-        user,
-        accessToken: data.access,
-        refreshToken,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-      return true;
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      return false;
-    }
-  };
-
-  // Автоматическое обновление токена
-  useEffect(() => {
-    if (authState.isAuthenticated && authState.accessToken) {
-      const tokenExpiry = getTokenExpiry(authState.accessToken);
-      const now = Date.now();
-      const timeUntilExpiry = tokenExpiry - now;
-
-      // Обновляем токен за 5 минут до истечения
-      const refreshTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 0);
-
-      const timer = setTimeout(() => {
-        refreshAccessToken();
-      }, refreshTime);
-
-      return () => clearTimeout(timer);
-    }
-  }, [authState.accessToken, authState.isAuthenticated]);
-
-  const getTokenExpiry = (token: string): number => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000;
-    } catch (error) {
-      return 0;
-    }
-  };
 
   const login = async (data: LoginData): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -146,6 +80,7 @@ export const useAuthProvider = () => {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',  // Важно для получения куки
         body: JSON.stringify(data),
       });
 
@@ -154,17 +89,10 @@ export const useAuthProvider = () => {
         return { success: false, error: errorData.error || 'Ошибка входа' };
       }
 
-      const authData: AuthResponse = await response.json();
-
-      // Сохраняем токены и данные пользователя
-      localStorage.setItem('accessToken', authData.access);
-      localStorage.setItem('refreshToken', authData.refresh);
-      localStorage.setItem('user', JSON.stringify(authData.user));
+      const user = await response.json();
 
       setAuthState({
-        user: authData.user,
-        accessToken: authData.access,
-        refreshToken: authData.refresh,
+        user,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -178,65 +106,38 @@ export const useAuthProvider = () => {
 
   const logout = async () => {
     try {
-      if (authState.refreshToken) {
-        await fetch(`${API_BASE_URL}/api/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refresh: authState.refreshToken }),
-        });
-      }
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',  // Отправляем куки для очистки
+      });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Очищаем локальное хранилище и состояние
-      localStorage.clear();
       setAuthState({
         user: null,
-        accessToken: null,
-        refreshToken: null,
         isAuthenticated: false,
         isLoading: false,
       });
     }
   };
 
-  const refreshAccessToken = async (): Promise<boolean> => {
-    if (!authState.refreshToken) {
-      return false;
-    }
-
+  const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh: authState.refreshToken }),
+        credentials: 'include',  // Отправляем refresh куку
       });
 
       if (!response.ok) {
-        throw new Error('Failed to refresh token');
+        return false;
       }
-
-      const data: RefreshResponse = await response.json();
-
-      // Обновляем access token
-      localStorage.setItem('accessToken', data.access);
-      setAuthState(prev => ({
-        ...prev,
-        accessToken: data.access,
-      }));
 
       return true;
     } catch (error) {
       console.error('Token refresh error:', error);
-      // Если не удалось обновить токен, выходим из системы
-      logout();
       return false;
     }
-  };
+  }, []);
 
   return {
     ...authState,

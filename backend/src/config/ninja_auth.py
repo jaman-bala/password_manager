@@ -10,8 +10,21 @@ User = get_user_model()
 
 class JWTAuth(HttpBearer):
     """
-    JWT Authentication для Django Ninja
+    JWT Authentication
     """
+    
+    def __call__(self, request):
+        # Сначала пробуем стандартный Bearer заголовок
+        user = super().__call__(request)
+        if user:
+            return user
+        
+        # Если не сработало, пробуем куку
+        token = request.COOKIES.get('access_token')
+        if token:
+            return self.authenticate(request, token)
+        
+        return None
     
     def authenticate(self, request, token):
         try:

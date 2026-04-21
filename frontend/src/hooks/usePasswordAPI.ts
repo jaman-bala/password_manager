@@ -10,7 +10,7 @@ interface APIResponse<T> {
 }
 
 export const usePasswordAPI = () => {
-  const { accessToken, refreshAccessToken } = useAuth();
+  const { refreshAccessToken } = useAuth();
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,24 +23,17 @@ export const usePasswordAPI = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Функция для создания заголовков с токеном
-  const getAuthHeaders = () => {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    return headers;
-  };
+  // Базовые заголовки без токена (куки отправляются автоматически)
+  const getHeaders = () => ({
+    'Content-Type': 'application/json',
+  });
 
   // Загрузить все категории
   const fetchCategories = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/index/categories`, {
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -72,7 +65,8 @@ export const usePasswordAPI = () => {
       }
 
       const response = await fetch(`${API_BASE_URL}/api/index/products?${queryParams}`, {
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
       });
 
       if (response.status === 401) {
@@ -82,7 +76,8 @@ export const usePasswordAPI = () => {
         }
         // Повторяем запрос с новым токеном
         const retryResponse = await fetch(`${API_BASE_URL}/api/index/products?${queryParams}`, {
-          headers: getAuthHeaders(),
+          headers: getHeaders(),
+          credentials: 'include',
         });
         if (!retryResponse.ok) {
           throw new Error(`HTTP error! status: ${retryResponse.status}`);
@@ -110,7 +105,7 @@ export const usePasswordAPI = () => {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, page, limit, searchQuery]);
+  }, [page, limit, searchQuery]);
 
   // Перейти на страницу
   const goToPage = (newPage: number) => {
@@ -141,7 +136,8 @@ export const usePasswordAPI = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/index/categories`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
         body: JSON.stringify({ name }),
       });
 
@@ -152,7 +148,8 @@ export const usePasswordAPI = () => {
         }
         const retryResponse = await fetch(`${API_BASE_URL}/api/index/categories`, {
           method: 'POST',
-          headers: getAuthHeaders(),
+          headers: getHeaders(),
+          credentials: 'include',
           body: JSON.stringify({ name }),
         });
         if (!retryResponse.ok) {
@@ -186,7 +183,8 @@ export const usePasswordAPI = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/index/categories/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
       });
 
       if (response.status === 401) {
@@ -196,7 +194,8 @@ export const usePasswordAPI = () => {
         }
         const retryResponse = await fetch(`${API_BASE_URL}/api/index/categories/${id}`, {
           method: 'DELETE',
-          headers: getAuthHeaders(),
+          headers: getHeaders(),
+          credentials: 'include',
         });
         if (!retryResponse.ok) {
           throw new Error(`HTTP error! status: ${retryResponse.status}`);
@@ -227,7 +226,8 @@ export const usePasswordAPI = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/index/products`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -238,7 +238,8 @@ export const usePasswordAPI = () => {
         }
         const retryResponse = await fetch(`${API_BASE_URL}/api/index/products`, {
           method: 'POST',
-          headers: getAuthHeaders(),
+          headers: getHeaders(),
+          credentials: 'include',
           body: JSON.stringify(data),
         });
         if (!retryResponse.ok) {
@@ -273,7 +274,8 @@ export const usePasswordAPI = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -284,7 +286,8 @@ export const usePasswordAPI = () => {
         }
         const retryResponse = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
           method: 'PUT',
-          headers: getAuthHeaders(),
+          headers: getHeaders(),
+          credentials: 'include',
           body: JSON.stringify(data),
         });
         if (!retryResponse.ok) {
@@ -318,7 +321,8 @@ export const usePasswordAPI = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: getHeaders(),
+        credentials: 'include',
       });
 
       if (response.status === 401) {
@@ -328,7 +332,8 @@ export const usePasswordAPI = () => {
         }
         const retryResponse = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
           method: 'DELETE',
-          headers: getAuthHeaders(),
+          headers: getHeaders(),
+          credentials: 'include',
         });
         if (!retryResponse.ok) {
           throw new Error(`HTTP error! status: ${retryResponse.status}`);
@@ -370,11 +375,9 @@ export const usePasswordAPI = () => {
 
   // Загрузить данные при инициализации
   useEffect(() => {
-    if (accessToken) {
-      fetchCategories();
-      fetchEntries();
-    }
-  }, [accessToken]);
+    fetchCategories();
+    fetchEntries();
+  }, []);
 
   return {
     entries,

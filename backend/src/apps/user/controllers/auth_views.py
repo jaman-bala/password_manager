@@ -17,7 +17,7 @@ from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutS
 
 router = Router()
 
-@router.post("/login", response=LoginResponseSchema, tags=["Аутентификация"])
+@router.post("/login", response=UserDTO, tags=["Аутентификация"])
 def login(request, data: LoginDTO):
     """Вход в систему"""
     user = authenticate(username=data.username, password=data.password)
@@ -27,37 +27,69 @@ def login(request, data: LoginDTO):
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
             
-            return {
-                "access": str(access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "username": user.username,
-                    "fio": user.fio,
-                    "email": user.email,
-                    "is_staff": user.is_staff,
-                    "is_superuser": user.is_superuser,
-                }
-            }
+            response = JsonResponse({
+                "id": user.id,
+                "username": user.username,
+                "fio": user.fio,
+                "email": user.email,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+            })
+            
+            response.set_cookie(
+                'access_token',
+                str(access_token),
+                httponly=True,
+                secure=False,  # В production поменять на True
+                samesite='Lax',
+                max_age=15 * 60  # 15 минут
+            )
+            response.set_cookie(
+                'refresh_token',
+                str(refresh),
+                httponly=True,
+                secure=False,  # В production поменять на True
+                samesite='Lax',
+                max_age=7 * 24 * 60 * 60  # 7 дней
+            )
+            
+            return response
         else:
             raise HttpError(400, "Аккаунт деактивирован")
     else:
         raise HttpError(401, "Неверные учетные данные")
 
 @router.post("/refresh", tags=["Аутентификация"])
-def refresh_token(request, data: RefreshTokenSchema):
-    """Обновление токена"""
+def refresh_token(request, data: RefreshTokenSchema = None):
+    """Обновление токена через httpOnly cookie"""
     try:
-        refresh_token = data.refresh
+        # Сначала пробуем получить из body, затем из cookie
+        refresh_token = None
+        if data and data.refresh:
+            refresh_token = data.refresh
+        elif request.COOKIES.get('refresh_token'):
+            refresh_token = request.COOKIES.get('refresh_token')
+        
         if not refresh_token:
             raise HttpError(400, "Refresh token не предоставлен")
             
         serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
         serializer.is_valid(raise_exception=True)
         
-        return {
-            "access": serializer.validated_data["access"]
-        }
+        new_access = serializer.validated_data["access"]
+        
+        # Создаем ответ с новым access токеном в куке
+        response = JsonResponse({"success": True})
+        response.set_cookie(
+            'access_token',
+            new_access,
+            httponly=True,
+            secure=False,
+            samesite='Lax',
+            max_age=15 * 60  # 15 минут
+        )
+        
+        return response
     except (InvalidToken, TokenError) as e:
         raise HttpError(401, "Недействительный refresh token")
     except HttpError:
@@ -66,16 +98,32 @@ def refresh_token(request, data: RefreshTokenSchema):
         raise HttpError(500, "Ошибка обновления токена")
 
 @router.post("/logout", tags=["Аутентификация"])
-def logout(request, data: LogoutSchema):
-    """Выход из системы"""
+def logout(request, data: LogoutSchema = None):
+    """Выход из системы с очисткой cookies"""
     try:
-        refresh_token = data.refresh
+        # Получаем refresh token из body или куки
+        refresh_token = None
+        if data and data.refresh:
+            refresh_token = data.refresh
+        elif request.COOKIES.get('refresh_token'):
+            refresh_token = request.COOKIES.get('refresh_token')
+        
         if refresh_token:
             token = RefreshToken(refresh_token)
             token.blacklist()
-        return {"message": "Успешный выход из системы"}
+        
+        # Создаем ответ и удаляем куки
+        response = JsonResponse({"message": "Успешный выход из системы"})
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        
+        return response
     except Exception as e:
-        raise HttpError(500, "Ошибка выхода из системы")
+        # Все равно удаляем куки даже если токен уже в блэклисте
+        response = JsonResponse({"message": "Успешный выход из системы"})
+        response.delete_cookie('access_token')
+        response.delete_cookie('refresh_token')
+        return response
 
 @router.get("/me", response=UserDTO, tags=["Аутентификация"], auth=jwt_auth)
 def get_current_user(request):

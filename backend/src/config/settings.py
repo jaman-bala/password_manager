@@ -81,6 +81,31 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Дополнительные настройки CORS
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8002",
+    "http://127.0.0.1:8002",
+    "http://localhost",
+    "http://127.0.0.1",
+]
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # В dev разрешаем все origins
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+CSRF_COOKIE_HTTPONLY = False  # Для работы с cookies в dev
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_HTTPONLY = True
 
 # Additional security settings
 if not DEBUG:
@@ -174,7 +199,7 @@ AUTH_USER_MODEL = "user.User"
 
 # JWT Settings
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=24),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -198,10 +223,13 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    # Cookie settings for httpOnly tokens
     'AUTH_COOKIE': 'access_token',
     'AUTH_COOKIE_REFRESH': 'refresh_token',
-    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_DOMAIN': None,
     'AUTH_COOKIE_SECURE': False,  # Set to True in production with HTTPS
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_PATH': '/',
     'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
