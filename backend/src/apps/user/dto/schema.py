@@ -6,6 +6,13 @@ class LoginDTO(Schema):
     """Schema for user login"""
     username: str
     password: str
+    two_factor_code: Optional[str] = None
+
+
+class TwoFactorLoginDTO(Schema):
+    """Schema for 2FA verification after login"""
+    username: str
+    two_factor_code: str
 
 
 class UserDTO(Schema):

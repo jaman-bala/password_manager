@@ -32,11 +32,38 @@ class ProductOrm(models.Model):
         null=True,
     )
 
+    # Папка для организации (древовидная структура)
+    folder = models.ForeignKey(
+        'Folder',
+        on_delete=models.SET_NULL,
+        verbose_name="Папка",
+        blank=True,
+        null=True,
+        related_name='passwords'
+    )
+
+    # Сейф для командной работы
+    vault = models.ForeignKey(
+        'organizations.Vault',
+        on_delete=models.SET_NULL,
+        verbose_name="Сейф",
+        blank=True,
+        null=True,
+        related_name='passwords'
+    )
+
     title = models.CharField(max_length=255, verbose_name="Название", blank=True, null=True)
     url = models.URLField(max_length=500, verbose_name="URL", blank=True, null=True)
     login = models.CharField(max_length=255, verbose_name="Логин", blank=True, null=True)
-    password = models.CharField(max_length=255, verbose_name="Пароль", blank=True, null=True)
+    
+    # Зашифрованный пароль и соль
+    password = models.CharField(max_length=500, verbose_name="Зашифрованный пароль", blank=True, null=True)
+    password_salt = models.CharField(max_length=255, verbose_name="Соль для шифрования", blank=True, null=True)
+    
     notes = models.TextField(verbose_name="Заметки", blank=True, null=True)
+    
+    # Для обратной совместимости - флаг шифрования
+    is_encrypted = models.BooleanField("Зашифрован", default=False)
 
 
     def __str__(self):

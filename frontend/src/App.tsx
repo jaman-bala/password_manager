@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User, LayoutGrid, Table2, Sun, Moon } from 'lucide-react';
+import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User, LayoutGrid, Table2, Sun, Moon, Settings, Download, Building2, Folder } from 'lucide-react';
 import { PasswordTable } from './components/PasswordTable';
 import { PasswordForm } from './components/PasswordForm';
 import { SearchBar } from './components/SearchBar';
@@ -7,6 +7,11 @@ import { CategoryManager } from './components/CategoryManager';
 import { Login } from './components/Login';
 import { ToastContainer, Toast, ToastType } from './components/Toast';
 import { Pagination } from './components/Pagination';
+import { SecuritySettings } from './components/SecuritySettings';
+import { ImportExport } from './components/ImportExport';
+import { Organizations } from './components/Organizations';
+import { FolderTree } from './components/FolderTree';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { usePasswordAPI } from './hooks/usePasswordAPI';
 import { useAuth } from './hooks/useAuth';
 import { PasswordEntry, PasswordFormData } from './types/Password';
@@ -20,6 +25,11 @@ function App() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('card');
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [isSecuritySettingsOpen, setIsSecuritySettingsOpen] = useState(false);
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+  const [isOrganizationsOpen, setIsOrganizationsOpen] = useState(false);
+  const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; title: string } | null>(null);
   const [isDark, setIsDark] = useState(() => {
     // Проверяем localStorage или системные предпочтения
     const saved = localStorage.getItem('theme');
@@ -120,14 +130,19 @@ function App() {
     setEditingEntry(null);
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Вы уверены, что хотите удалить эту запись?')) {
-      const result = await deleteEntry(id.toString());
+  const handleDelete = async (id: number, title: string) => {
+    setDeleteConfirm({ id, title });
+  };
+
+  const confirmDelete = async () => {
+    if (deleteConfirm) {
+      const result = await deleteEntry(deleteConfirm.id.toString());
       if (result.error) {
         showToast(`Ошибка удаления: ${result.error}`, 'error');
       } else {
         showToast('Запись удалена', 'success');
       }
+      setDeleteConfirm(null);
     }
   };
 
@@ -171,6 +186,54 @@ function App() {
               <span className="font-medium">Добро пожаловать, {user?.fio || user?.username}</span>
             </div>
             <div className="flex items-center gap-2">
+              {/* Organizations */}
+              <button
+                onClick={() => setIsOrganizationsOpen(true)}
+                className={`p-2 rounded-xl transition-all duration-300 ${
+                  isDark
+                    ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+                title="Организации"
+              >
+                <Building2 size={20} />
+              </button>
+              {/* Folders */}
+              <button
+                onClick={() => setIsFolderTreeOpen(true)}
+                className={`p-2 rounded-xl transition-all duration-300 ${
+                  isDark
+                    ? 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
+                    : 'text-gray-600 hover:text-yellow-600 hover:bg-yellow-50'
+                }`}
+                title="Папки"
+              >
+                <Folder size={20} />
+              </button>
+              {/* Import/Export */}
+              <button
+                onClick={() => setIsImportExportOpen(true)}
+                className={`p-2 rounded-xl transition-all duration-300 ${
+                  isDark
+                    ? 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
+                    : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+                }`}
+                title="Импорт/Экспорт"
+              >
+                <Download size={20} />
+              </button>
+              {/* Security Settings */}
+              <button
+                onClick={() => setIsSecuritySettingsOpen(true)}
+                className={`p-2 rounded-xl transition-all duration-300 ${
+                  isDark
+                    ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-500/10'
+                    : 'text-gray-600 hover:text-purple-600 hover:bg-purple-50'
+                }`}
+                title="Настройки безопасности"
+              >
+                <Settings size={20} />
+              </button>
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
@@ -391,6 +454,49 @@ function App() {
             isDark={isDark}
           />
         )}
+
+        {/* Security Settings Modal */}
+        {isSecuritySettingsOpen && (
+          <SecuritySettings
+            isDark={isDark}
+            onClose={() => setIsSecuritySettingsOpen(false)}
+          />
+        )}
+
+        {/* Import/Export Modal */}
+        {isImportExportOpen && (
+          <ImportExport
+            isDark={isDark}
+            onClose={() => setIsImportExportOpen(false)}
+          />
+        )}
+
+        {/* Organizations Modal */}
+        {isOrganizationsOpen && (
+          <Organizations
+            isDark={isDark}
+            onClose={() => setIsOrganizationsOpen(false)}
+          />
+        )}
+
+        {/* FolderTree Modal */}
+        {isFolderTreeOpen && (
+          <FolderTree
+            isDark={isDark}
+            onClose={() => setIsFolderTreeOpen(false)}
+          />
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={deleteConfirm !== null}
+          onClose={() => setDeleteConfirm(null)}
+          onConfirm={confirmDelete}
+          title="Удалить запись"
+          message={`Вы уверены, что хотите удалить "${deleteConfirm?.title}"? Это действие нельзя отменить.`}
+          confirmText="Удалить"
+          cancelText="Отмена"
+        />
       </div>
     </div>
   );

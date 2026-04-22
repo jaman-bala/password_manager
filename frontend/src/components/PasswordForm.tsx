@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Save, X, RefreshCw, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Save, X, RefreshCw, Shield, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { PasswordEntry, PasswordFormData, Category } from '../types/Password';
+import { useSecurity } from '../hooks/useSecurity';
+import { useFolders } from '../hooks/useFolders';
+import { useOrganizations } from '../hooks/useOrganizations';
+import { Folder } from '../types/Folder';
+import { Vault } from '../types/Organization';
 
 interface PasswordFormProps {
   entry?: PasswordEntry | null;
@@ -23,10 +28,22 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
     login: '',
     password: '',
     notes: '',
-    category_id: undefined
+    category_id: undefined,
+    folder_id: undefined,
+    vault_id: undefined
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<PasswordFormData>>({});
+  const { checkPasswordBreach } = useSecurity();
+  const { folders, fetchFolders } = useFolders();
+  const { vaults, fetchVaults } = useOrganizations();
+  const [breachCheck, setBreachCheck] = useState<{ is_breached: boolean; count: number } | null>(null);
+  const [checkingBreach, setCheckingBreach] = useState(false);
+
+  useEffect(() => {
+    fetchFolders();
+    fetchVaults();
+  }, []);
 
   useEffect(() => {
     if (entry) {
@@ -37,7 +54,9 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
         login: entry.login || '',
         password: entry.password || '',
         notes: entry.notes || '',
-        category_id: entry.category?.id
+        category_id: entry.category?.id,
+        folder_id: entry.folder_id,
+        vault_id: entry.vault_id
       });
     } else {
       // Создание - сбрасываем форму
@@ -47,7 +66,9 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
         login: '',
         password: '',
         notes: '',
-        category_id: undefined
+        category_id: undefined,
+        folder_id: undefined,
+        vault_id: undefined
       });
     }
     // Сбрасываем ошибки при открытии
@@ -58,18 +79,30 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Partial<PasswordFormData> = {};
 
-    if (!formData.title.trim()) {
+    if (!formData.title?.trim()) {
       newErrors.title = 'Название обязательно';
     }
-    if (!formData.login.trim()) {
+    if (!formData.login?.trim()) {
       newErrors.login = 'Логин обязательный';
     }
-    if (!formData.password.trim()) {
+    if (!formData.password?.trim()) {
       newErrors.password = 'Пароль обязательный';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handlePasswordChange = async (value: string) => {
+    setFormData({ ...formData, password: value });
+    setBreachCheck(null);
+
+    if (value.length >= 8) {
+      setCheckingBreach(true);
+      const result = await checkPasswordBreach({ password: value });
+      setBreachCheck(result);
+      setCheckingBreach(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -243,7 +276,7 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={formData.password}
-                onChange={(e) => handleChange('password', e.target.value)}
+                onChange={(e) => handlePasswordChange(e.target.value)}
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all pr-24 ${
                   errors.password
                     ? 'border-red-500 bg-red-50/50'
@@ -297,6 +330,37 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
                       {strength.label}
                     </span>
                   </div>
+                  {checkingBreach && (
+                    <span className="text-sm text-gray-500 animate-pulse">Проверка утечек...</span>
+                  )}
+                </div>
+                {/* Предупреждение об утечках */}
+                {breachCheck && breachCheck.is_breached && (
+                  <div className={`p-3 rounded-xl flex items-start gap-2 ${
+                    isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={16} />
+                    <div className="text-sm">
+                      <p className="font-semibold text-red-600 dark:text-red-400">
+                        Этот пароль найден в {breachCheck.count} утечке(ах) данных!
+                      </p>
+                      <p className="text-red-500/80 dark:text-red-400/80 mt-1">
+                        Рекомендуется использовать другой пароль.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {breachCheck && !breachCheck.is_breached && (
+                  <div className={`p-3 rounded-xl flex items-center gap-2 ${
+                    isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'
+                  }`}>
+                    <ShieldCheck className="text-green-500" size={16} />
+                    <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                      Пароль не найден в утечках данных
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-gray-400">{formData.password.length} симв.</span>
                 </div>
                 <div className="flex gap-1">
@@ -331,6 +395,50 @@ export const PasswordForm: React.FC<PasswordFormProps> = ({
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id} className={isDark ? 'bg-slate-700' : ''}>
                   {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+              Папка
+            </label>
+            <select
+              value={formData.folder_id || ''}
+              onChange={(e) => handleChange('folder_id', e.target.value ? parseInt(e.target.value) : undefined)}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer ${
+                isDark
+                  ? 'border-slate-600 bg-slate-700/80 text-white'
+                  : 'border-gray-200 bg-white/80'
+              }`}
+            >
+              <option value="" className={isDark ? 'bg-slate-700' : ''}>Без папки</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id} className={isDark ? 'bg-slate-700' : ''}>
+                  {folder.full_path || folder.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className={`block text-sm font-bold mb-3 uppercase tracking-wider ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
+              Сейф (для командной работы)
+            </label>
+            <select
+              value={formData.vault_id || ''}
+              onChange={(e) => handleChange('vault_id', e.target.value ? parseInt(e.target.value) : undefined)}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer ${
+                isDark
+                  ? 'border-slate-600 bg-slate-700/80 text-white'
+                  : 'border-gray-200 bg-white/80'
+              }`}
+            >
+              <option value="" className={isDark ? 'bg-slate-700' : ''}>Без сейфа</option>
+              {vaults.map((vault) => (
+                <option key={vault.id} value={vault.id} className={isDark ? 'bg-slate-700' : ''}>
+                  {vault.name} (Организация ID: {vault.organization_id})
                 </option>
               ))}
             </select>

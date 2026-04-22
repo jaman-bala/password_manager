@@ -78,8 +78,17 @@ def get_products(request, page: int = 1, limit: int = 20, search: str = ""):
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
-    
-    qs = ProductOrm.objects.filter(user=request.user)
+
+    # Получаем ID сейфов, к которым у пользователя есть доступ
+    from apps.organizations.models.vault import VaultAccess
+    accessible_vault_ids = VaultAccess.objects.filter(user=request.user).values_list('vault_id', flat=True)
+
+    # Фильтруем: личные записи ИЛИ записи из доступных сейфов
+    qs = ProductOrm.objects.filter(
+        user=request.user
+    ) | ProductOrm.objects.filter(
+        vault_id__in=accessible_vault_ids
+    )
 
     if search:
         qs = qs.filter(title__icontains=search) | qs.filter(login__icontains=search) | qs.filter(url__icontains=search)
@@ -115,9 +124,22 @@ def create_product(request, data: ProductCreateDTO):
     category = None
     if data.category_id:
         category = CategoryOrm.objects.get(id=data.category_id)
+
+    folder = None
+    if data.folder_id:
+        from apps.product.models import Folder
+        folder = Folder.objects.get(id=data.folder_id)
+
+    vault = None
+    if data.vault_id:
+        from apps.organizations.models import Vault
+        vault = Vault.objects.get(id=data.vault_id)
+
     product = ProductOrm.objects.create(
         user=request.user,
         category=category,
+        folder=folder,
+        vault=vault,
         title=data.title or "",
         url=data.url or "",
         login=data.login or "",
@@ -135,15 +157,27 @@ def update_product(request, product_id: int, data: ProductCreateDTO):
         category = None
         if data.category_id:
             category = CategoryOrm.objects.get(id=data.category_id)
-        
+
+        folder = None
+        if data.folder_id:
+            from apps.product.models import Folder
+            folder = Folder.objects.get(id=data.folder_id)
+
+        vault = None
+        if data.vault_id:
+            from apps.organizations.models import Vault
+            vault = Vault.objects.get(id=data.vault_id)
+
         product.category = category
+        product.folder = folder
+        product.vault = vault
         product.title = data.title or ""
         product.url = data.url or ""
         product.login = data.login or ""
         product.password = data.password or ""
         product.notes = data.notes or ""
         product.save()
-        
+
         invalidate_products_cache(request.user.id)  # Clear user's product cache
         return product
     except ProductOrm.DoesNotExist:

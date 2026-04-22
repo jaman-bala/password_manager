@@ -1,4 +1,5 @@
 import logging
+import pyotp
 from ninja import Router
 from ninja.security import django_auth
 from django.contrib.auth import authenticate
@@ -16,20 +17,46 @@ from ninja.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
-from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutSchema
+from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutSchema, TwoFactorLoginDTO
+from apps.user.models import TwoFactorAuth
 
 router = Router()
 
-@router.post("/login", response=UserDTO, tags=["Аутентификация"])
+@router.post("/login", tags=["Аутентификация"])
 def login(request, data: LoginDTO):
     """Вход в систему"""
     user = authenticate(username=data.username, password=data.password)
-    
+
     if user is not None:
         if user.is_active:
+            # Проверяем включена ли 2FA
+            try:
+                two_factor = TwoFactorAuth.objects.get(user=user)
+                if two_factor.is_enabled:
+                    # Если код не предоставлен, возвращаем что нужен 2FA код
+                    if not data.two_factor_code:
+                        return JsonResponse({
+                            "requires_2fa": True,
+                            "message": "Требуется код двухфакторной аутентификации"
+                        })
+
+                    # Проверяем 2FA код
+                    totp = pyotp.TOTP(two_factor.secret_key)
+                    if not totp.verify(data.two_factor_code):
+                        # Проверяем резервные коды
+                        if data.two_factor_code not in two_factor.backup_codes:
+                            logger.warning(f"Failed 2FA attempt for user: {data.username}")
+                            raise HttpError(401, "Неверный код 2FA")
+                        else:
+                            # Удаляем использованный резервный код
+                            two_factor.backup_codes.remove(data.two_factor_code)
+                            two_factor.save()
+            except TwoFactorAuth.DoesNotExist:
+                pass  # 2FA не настроена, продолжаем обычный вход
+
             refresh = RefreshToken.for_user(user)
             access_token = refresh.access_token
-            
+
             response = JsonResponse({
                 "id": user.id,
                 "username": user.username,
@@ -37,8 +64,9 @@ def login(request, data: LoginDTO):
                 "email": user.email,
                 "is_staff": user.is_staff,
                 "is_superuser": user.is_superuser,
+                "2fa_verified": True
             })
-            
+
             response.set_cookie(
                 'access_token',
                 str(access_token),
@@ -55,7 +83,7 @@ def login(request, data: LoginDTO):
                 samesite='Lax',
                 max_age=7 * 24 * 60 * 60  # 7 дней
             )
-            
+
             return response
         else:
             raise HttpError(400, "Аккаунт деактивирован")

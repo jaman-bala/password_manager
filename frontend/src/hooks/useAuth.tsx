@@ -4,7 +4,7 @@ import { LoginData, User, AuthState } from '../types/Auth';
 const API_BASE_URL = '/api';
 
 interface AuthContextType extends AuthState {
-  login: (data: LoginData) => Promise<{ success: boolean; error?: string }>;
+  login: (data: LoginData) => Promise<{ success: boolean; error?: string; requires_2fa?: boolean }>;
   logout: () => void;
   refreshAccessToken: () => Promise<boolean>;
 }
@@ -72,7 +72,7 @@ export const useAuthProvider = () => {
     initAuth();
   }, []);
 
-  const login = async (data: LoginData): Promise<{ success: boolean; error?: string }> => {
+  const login = async (data: LoginData): Promise<{ success: boolean; error?: string; requires_2fa?: boolean }> => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -88,10 +88,15 @@ export const useAuthProvider = () => {
         return { success: false, error: errorData.error || 'Ошибка входа' };
       }
 
-      const user = await response.json();
+      const responseData = await response.json();
+
+      // Проверяем, требуется ли 2FA
+      if (responseData.requires_2fa) {
+        return { success: false, requires_2fa: true };
+      }
 
       setAuthState({
-        user,
+        user: responseData,
         isAuthenticated: true,
         isLoading: false,
       });

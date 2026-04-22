@@ -15,6 +15,8 @@ export interface PasswordEntry {
   created_at: string;
   updated_at: string;
   category?: Category;
+  folder_id?: number;
+  vault_id?: number;
 }
 
 export interface PasswordFormData {
@@ -24,6 +26,8 @@ export interface PasswordFormData {
   password?: string;
   notes?: string;
   category_id?: number;
+  folder_id?: number;
+  vault_id?: number;
 }
 
 export interface PaginatedResponse<T> {

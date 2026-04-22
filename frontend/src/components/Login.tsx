@@ -7,10 +7,12 @@ export const Login: React.FC = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
+    two_factor_code: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requires2FA, setRequires2FA] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -28,11 +30,16 @@ export const Login: React.FC = () => {
     setError(null);
 
     const result = await login(formData);
-    
+
     if (!result.success) {
-      setError(result.error || 'Ошибка входа в систему');
+      if (result.requires_2fa) {
+        setRequires2FA(true);
+        setError(null);
+      } else {
+        setError(result.error || 'Ошибка входа в систему');
+      }
     }
-    
+
     setIsSubmitting(false);
   };
 
@@ -133,6 +140,30 @@ export const Login: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* 2FA Code field */}
+            {requires2FA && (
+              <div className="animate-fade-in">
+                <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">
+                  Код двухфакторной аутентификации
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="two_factor_code"
+                    value={formData.two_factor_code}
+                    onChange={handleChange}
+                    required
+                    maxLength={6}
+                    className="w-full px-4 py-4 border border-gray-200 bg-white/80 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all duration-300 font-medium shadow-lg hover:shadow-xl text-center text-2xl tracking-widest"
+                    placeholder="000000"
+                  />
+                </div>
+                <p className="text-sm text-gray-500 mt-2 text-center">
+                  Введите 6-значный код из приложения аутентификатора
+                </p>
+              </div>
+            )}
 
             {/* Submit button */}
             <button

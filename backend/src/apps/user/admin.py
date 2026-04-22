@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from unfold.admin import ModelAdmin
-from .models import User
+from .models import User, Role, TwoFactorAuth
 
 # Регистрируем нашу кастомную админку для пользователей
 @admin.register(User)
@@ -44,3 +44,18 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     )
     
     readonly_fields = ('last_login', 'date_joined')
+
+
+@admin.register(Role)
+class RoleAdmin(ModelAdmin):
+    list_display = ('name', 'description')
+    search_fields = ('name', 'description')
+    ordering = ('name',)
+
+
+@admin.register(TwoFactorAuth)
+class TwoFactorAuthAdmin(ModelAdmin):
+    list_display = ('user', 'is_enabled')
+    list_filter = ('is_enabled',)
+    search_fields = ('user__username',)
+    readonly_fields = ('secret_key', 'backup_codes')
