@@ -6,8 +6,12 @@ from ninja import NinjaAPI
 from ninja.security import django_auth
 
 from apps.product.controllers.views import router as product_router
+from apps.product.controllers.folder_views import router as folder_router
+from apps.product.controllers.import_export_views import router as import_export_router
 from apps.user.controllers.views import router as user_router
 from apps.user.controllers.auth_views import router as auth_router
+from apps.user.controllers.security_views import router as security_router
+from apps.organizations.controllers.views import router as organizations_router
 from config.ninja_auth import jwt_auth
 
 from . import settings
@@ -32,6 +36,34 @@ api.add_router(
     auth_router,
     tags=["Аутентификация"],
     auth=None,  # Отключаем аутентификацию для эндпоинтов входа
+)
+
+# Security routes
+api.add_router(
+    "security",  # префикс для безопасности
+    security_router,
+    tags=["Безопасность"],
+)
+
+# Organizations routes
+api.add_router(
+    "organizations",  # префикс для организаций
+    organizations_router,
+    tags=["Организации"],
+)
+
+# Folder routes
+api.add_router(
+    "folders",  # префикс для папок
+    folder_router,
+    tags=["Папки"],
+)
+
+# Import/Export routes
+api.add_router(
+    "import-export",  # префикс для импорта/экспорта
+    import_export_router,
+    tags=["Импорт/Экспорт"],
 )
 
 # User routes

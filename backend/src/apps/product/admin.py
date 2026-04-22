@@ -1,6 +1,8 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from .models.models import ProductOrm, CategoryOrm
+from .models.folder import Folder
+from .models.password_history import PasswordHistory
 
 
 
@@ -37,3 +39,21 @@ class CategoryAdmin(ModelAdmin):
     search_fields = ('name',)
     ordering = ('-created_at',)
     readonly_fields = ('created_at',)
+
+
+@admin.register(Folder)
+class FolderAdmin(ModelAdmin):
+    list_display = ('name', 'parent', 'created_at')
+    list_filter = ('parent', 'created_at')
+    search_fields = ('name',)
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at',)
+
+
+@admin.register(PasswordHistory)
+class PasswordHistoryAdmin(ModelAdmin):
+    list_display = ('product', 'changed_at', 'changed_by')
+    list_filter = ('changed_at',)
+    search_fields = ('product__title',)
+    ordering = ('-changed_at',)
+    readonly_fields = ('changed_at',)

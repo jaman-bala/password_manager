@@ -14,6 +14,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    
+    # Master password для шифрования (хранится только хеш)
+    master_password_hash = models.CharField("Master password hash", max_length=255, blank=True, null=True)
+    master_password_enabled = models.BooleanField("Master password enabled", default=False)
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = []  # type: ignore

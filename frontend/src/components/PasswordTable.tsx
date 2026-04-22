@@ -5,7 +5,7 @@ import { PasswordEntry } from '../types/Password';
 interface PasswordTableProps {
   entries: PasswordEntry[];
   onEdit: (entry: PasswordEntry) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number, title: string) => void;
   viewMode?: 'table' | 'card';
   onCopy?: () => void;
   isDark?: boolean;
@@ -23,7 +23,6 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
   loading = false
 }) => {
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set());
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [sortField, setSortField] = useState<'title' | 'login' | 'created_at'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
@@ -68,16 +67,6 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
       }
       return newSet;
     });
-  };
-
-  const handleDelete = (id: number) => {
-    if (deleteConfirm === id) {
-      onDelete(id);
-      setDeleteConfirm(null);
-    } else {
-      setDeleteConfirm(id);
-      setTimeout(() => setDeleteConfirm(null), 3000);
-    }
   };
 
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -150,13 +139,29 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
                 <h3 className={`font-bold group-hover:text-blue-500 transition-colors ${isDark ? 'text-gray-100' : 'text-gray-900'}`}>
                   {entry.title || 'Без названия'}
                 </h3>
-                {entry.category && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    isDark ? 'text-blue-300 bg-blue-900/30' : 'text-blue-600 bg-blue-50'
-                  }`}>
-                    {entry.category.name}
-                  </span>
-                )}
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {entry.category && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      isDark ? 'text-blue-300 bg-blue-900/30' : 'text-blue-600 bg-blue-50'
+                    }`}>
+                      {entry.category.name}
+                    </span>
+                  )}
+                  {entry.folder_id && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      isDark ? 'text-yellow-300 bg-yellow-900/30' : 'text-yellow-600 bg-yellow-50'
+                    }`}>
+                      Папка #{entry.folder_id}
+                    </span>
+                  )}
+                  {entry.vault_id && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      isDark ? 'text-purple-300 bg-purple-900/30' : 'text-purple-600 bg-purple-50'
+                    }`}>
+                      Сейф #{entry.vault_id}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex gap-1">
@@ -171,13 +176,11 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
                 <Edit size={16} />
               </button>
               <button
-                onClick={() => handleDelete(entry.id)}
+                onClick={() => onDelete(entry.id, entry.title || 'Запись')}
                 className={`p-2 rounded-lg transition-all ${
-                  deleteConfirm === entry.id
-                    ? 'text-white bg-red-500'
-                    : isDark
-                      ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
-                      : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                  isDark
+                    ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10'
+                    : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                 }`}
               >
                 <Trash2 size={16} />
@@ -348,15 +351,31 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
                   </div>
                 </td>
                 <td className="py-6 px-8">
-                  {entry.category ? (
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {entry.category.name}
-                    </span>
-                  ) : (
-                    <span className={`text-sm ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>—</span>
-                  )}
+                  <div className="flex gap-1 flex-wrap">
+                    {entry.category ? (
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {entry.category.name}
+                      </span>
+                    ) : (
+                      <span className={`text-sm ${isDark ? 'text-slate-500' : 'text-gray-400'}`}>—</span>
+                    )}
+                    {entry.folder_id && (
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        isDark ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        Папка #{entry.folder_id}
+                      </span>
+                    )}
+                    {entry.vault_id && (
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        isDark ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        Сейф #{entry.vault_id}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-6 px-8">
                   {entry.url ? (
@@ -449,10 +468,9 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
                       <Edit size={18} />
                     </button>
                     <button
-                      onClick={() => handleDelete(entry.id)}
-                      className={`p-2 rounded-lg transition-colors ${deleteConfirm === entry.id
-                          ? 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-200 transform scale-110'
-                          : isDark
+                      onClick={() => onDelete(entry.id, entry.title || 'Запись')}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isDark
                             ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10 transform hover:scale-110 hover:-translate-y-1 shadow-lg shadow-slate-900/50 hover:shadow-red-500/20'
                             : 'text-gray-400 hover:text-red-600 hover:bg-red-50 transform hover:scale-110 hover:-translate-y-1 shadow-lg hover:shadow-red-200'
                         }`}

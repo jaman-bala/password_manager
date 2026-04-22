@@ -46,12 +46,14 @@ INSTALLED_APPS = [
     # APP
     "apps.product",
     "apps.user",
+    "apps.organizations",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",  # Добавляем для статических файлов
     "config.rate_limiting.RateLimitMiddleware",  # Rate limiting
+    "config.admin_ip_whitelist.AdminIPWhitelistMiddleware",  # Admin IP Whitelist
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -60,6 +62,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "config.security.JWTMiddleware",
+    "config.two_factor_middleware.TwoFactorMiddleware",  # 2FA проверка
 ]
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -252,6 +255,7 @@ UNFOLD = {
     "SITE_TITLE": "Password Manager",
     "SITE_HEADER": "Панель администратирование",
     "SITE_SUBHEADER": "СПИСОК",
+    "SITE_LOGO": "https://img.icons8.com/?size=100&id=W2bj5QzuYDEL&format=png&color=000000",
     "SITE_URL": "/",
     "SITE_SYMBOL": "speed",  # symbol from icon set
     "SITE_FAVICONS": [
@@ -259,7 +263,7 @@ UNFOLD = {
             "rel": "icon",
             "sizes": "32x32",
             "type": "image/svg+xml",
-            "href": lambda request: static("icon-light.svg"),
+            "href": "https://img.icons8.com/?size=100&id=W2bj5QzuYDEL&format=png&color=000000",
         },
     ],
     "BORDER_RADIUS": "6px",
@@ -324,3 +328,6 @@ REST_FRAMEWORK = {
 
 # Django Ninja settings
 NINJA_AUTHENTICATION = 'rest_framework_simplejwt.authentication.JWTAuthentication'
+
+# Admin IP Whitelist
+ADMIN_IP_WHITELIST = os.environ.get("ADMIN_IP_WHITELIST", "").split(",") if os.environ.get("ADMIN_IP_WHITELIST") else []

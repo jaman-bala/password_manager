@@ -22,6 +22,8 @@ class PaginatedProductsResponseSchema(Schema):
 
 class ProductCreateDTO(Schema):
     category_id: Optional[int] = None
+    folder_id: Optional[int] = None
+    vault_id: Optional[int] = None
     title: Optional[str] = None
     url: Optional[str] = None
     login: Optional[str] = None
@@ -45,6 +47,8 @@ class CategoryCreateDTO(Schema):
 class ProductDTO(Schema):
     id: int
     category: Optional[CategoryDTO] = None
+    folder_id: Optional[int] = None
+    vault_id: Optional[int] = None
     title: Optional[str] = None
     url: Optional[str] = None
     login: Optional[str] = None
@@ -52,6 +56,6 @@ class ProductDTO(Schema):
     notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True

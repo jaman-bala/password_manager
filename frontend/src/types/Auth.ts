@@ -1,6 +1,7 @@
 export interface LoginData {
   username: string;
   password: string;
+  two_factor_code?: string;
 }
 
 export interface User {
@@ -10,6 +11,7 @@ export interface User {
   fio: string;
   is_staff: boolean;
   is_superuser: boolean;
+  master_password_enabled?: boolean;
 }
 
 export interface AuthResponse {
