@@ -1,7 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { LoginData, User, AuthState } from '../types/Auth';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8002';
+const API_BASE_URL = '/api';
 
 interface AuthContextType extends AuthState {
   login: (data: LoginData) => Promise<{ success: boolean; error?: string }>;
@@ -31,7 +31,7 @@ export const useAuthProvider = () => {
     const initAuth = async () => {
       try {
         // Пробуем получить текущего пользователя
-        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
           credentials: 'include',  // Отправляем куки
         });
 
@@ -47,7 +47,7 @@ export const useAuthProvider = () => {
           const refreshed = await refreshAccessToken();
           if (refreshed) {
             // Повторяем запрос
-            const retryResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+            const retryResponse = await fetch(`${API_BASE_URL}/auth/me`, {
               credentials: 'include',
             });
             if (retryResponse.ok) {
@@ -64,8 +64,7 @@ export const useAuthProvider = () => {
         } else {
           setAuthState({ user: null, isAuthenticated: false, isLoading: false });
         }
-      } catch (error) {
-        console.error('Auth init error:', error);
+      } catch {
         setAuthState({ user: null, isAuthenticated: false, isLoading: false });
       }
     };
@@ -75,7 +74,7 @@ export const useAuthProvider = () => {
 
   const login = async (data: LoginData): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -98,20 +97,19 @@ export const useAuthProvider = () => {
       });
 
       return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
       return { success: false, error: 'Ошибка сети' };
     }
   };
 
   const logout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include',  // Отправляем куки для очистки
       });
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch {
+      // Logout error - continue with local cleanup
     } finally {
       setAuthState({
         user: null,
@@ -123,18 +121,13 @@ export const useAuthProvider = () => {
 
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',  // Отправляем refresh куку
       });
 
-      if (!response.ok) {
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Token refresh error:', error);
+      return response.ok;
+    } catch {
       return false;
     }
   }, []);

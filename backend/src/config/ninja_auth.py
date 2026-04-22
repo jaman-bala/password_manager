@@ -10,7 +10,7 @@ User = get_user_model()
 
 class JWTAuth(HttpBearer):
     """
-    JWT Authentication
+    JWT Authentication via Bearer header or httpOnly cookie
     """
     
     def __call__(self, request):
@@ -21,8 +21,11 @@ class JWTAuth(HttpBearer):
         
         # Если не сработало, пробуем куку
         token = request.COOKIES.get('access_token')
+        
         if token:
-            return self.authenticate(request, token)
+            user = self.authenticate(request, token)
+            if user:
+                return user
         
         return None
     

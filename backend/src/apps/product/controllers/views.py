@@ -2,6 +2,8 @@ from ninja import Router
 from ninja.security import django_auth
 from django.http import Http404
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.conf import settings
 from config.ninja_auth import jwt_auth
 
 from apps.product.models.models import ProductOrm, CategoryOrm
@@ -10,11 +12,33 @@ from apps.product.dto.schema import ProductDTO, CategoryDTO, ProductCreateDTO, C
 router = Router()
 User = get_user_model()
 
+# Cache key helpers
+def get_products_cache_key(user_id: int, page: int, limit: int, search: str = "") -> str:
+    return f"products:u{user_id}:p{page}:l{limit}:s{search or 'all'}"
+
+def get_categories_cache_key() -> str:
+    return "categories:all"
+
+def invalidate_products_cache(user_id: int):
+    """Invalidate all product cache keys for a user"""
+    # Delete cache with pattern (simple approach - delete specific keys)
+    # For production with many pages, use Redis SCAN or cache versioning
+    cache.delete_pattern(f"products:u{user_id}:*")
+
+def invalidate_categories_cache():
+    """Invalidate categories cache"""
+    cache.delete(get_categories_cache_key())
 
 @router.get("/categories", response=list[CategoryDTO], tags=["Категории"])
 def get_categories(request):
-    """Получить все категории товаров"""
-    categories = CategoryOrm.objects.all()
+    """Получить все категории товаров (кэшировано)"""
+    cache_key = get_categories_cache_key()
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
+    categories = list(CategoryOrm.objects.all())
+    cache.set(cache_key, categories, settings.CACHE_TTL_CATEGORIES)
     return categories
 
 
@@ -26,6 +50,7 @@ def create_category(request, data: CategoryCreateDTO):
         raise ValueError("Название категории не может быть пустым")
     
     category = CategoryOrm.objects.create(name=name)
+    invalidate_categories_cache()  # Clear categories cache
     return category
 
 
@@ -37,6 +62,10 @@ def delete_category(request, category_id: int):
         # Удаляем категорию из всех продуктов
         ProductOrm.objects.filter(category=category).update(category=None)
         category.delete()
+        invalidate_categories_cache()  # Clear categories cache
+        # Invalidate all users' product caches since products were updated
+        # In production, use targeted invalidation
+        cache.clear()  # Simple approach: clear all cache
         return {"success": True, "message": "Category deleted successfully"}
     except CategoryOrm.DoesNotExist:
         raise Http404("Category not found")
@@ -44,7 +73,12 @@ def delete_category(request, category_id: int):
 
 @router.get("/products", response=PaginatedProductsResponseSchema, tags=["Продукты"], auth=jwt_auth)
 def get_products(request, page: int = 1, limit: int = 20, search: str = ""):
-    """Получить продукты пользователя с пагинацией"""
+    """Получить продукты пользователя с пагинацией (кэшировано)"""
+    cache_key = get_products_cache_key(request.user.id, page, limit, search)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    
     qs = ProductOrm.objects.filter(user=request.user)
 
     if search:
@@ -55,15 +89,16 @@ def get_products(request, page: int = 1, limit: int = 20, search: str = ""):
     start = (page - 1) * limit
     end = start + limit
 
-    items = qs[start:end]
-
-    return {
+    items = list(qs[start:end])
+    result = {
         "items": items,
         "total": total,
         "page": page,
         "limit": limit,
         "total_pages": total_pages
     }
+    cache.set(cache_key, result, settings.CACHE_TTL_PRODUCTS)
+    return result
 
 @router.get("/products/{product_id}", response=ProductDTO, tags=["Продукты"], auth=jwt_auth)
 def get_product(request, product_id: int):
@@ -89,6 +124,7 @@ def create_product(request, data: ProductCreateDTO):
         password=data.password or "",
         notes=data.notes or "",
     )
+    invalidate_products_cache(request.user.id)  # Clear user's product cache
     return product
 
 @router.put("/products/{product_id}", response=ProductDTO, tags=["Продукты"], auth=jwt_auth)
@@ -108,6 +144,7 @@ def update_product(request, product_id: int, data: ProductCreateDTO):
         product.notes = data.notes or ""
         product.save()
         
+        invalidate_products_cache(request.user.id)  # Clear user's product cache
         return product
     except ProductOrm.DoesNotExist:
         raise Http404("Product not found")
@@ -118,6 +155,7 @@ def delete_product(request, product_id: int):
     try:
         product = ProductOrm.objects.get(id=product_id, user=request.user)
         product.delete()
+        invalidate_products_cache(request.user.id)  # Clear user's product cache
         return {"success": True, "message": "Product deleted successfully"}
     except ProductOrm.DoesNotExist:
         raise Http404("Product not found")

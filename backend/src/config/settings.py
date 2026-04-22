@@ -59,7 +59,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # "config.security.JWTMiddleware",  # Временно отключен
+    "config.security.JWTMiddleware",
 ]
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -233,6 +233,21 @@ SIMPLE_JWT = {
     'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
+# Cache settings - Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://localhost:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+# Cache TTL settings (in seconds)
+CACHE_TTL_PRODUCTS = 300  # 5 minutes for products list
+CACHE_TTL_CATEGORIES = 600  # 10 minutes for categories
+
 UNFOLD = {
     "SITE_TITLE": "Password Manager",
     "SITE_HEADER": "Панель администратирование",
@@ -296,17 +311,6 @@ UNFOLD = {
         },
     },
 }
-
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://frontend:3000",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # Allow all origins in development
 
 # REST Framework settings
 REST_FRAMEWORK = {

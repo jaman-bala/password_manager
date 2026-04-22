@@ -9,6 +9,7 @@ interface PasswordTableProps {
   viewMode?: 'table' | 'card';
   onCopy?: () => void;
   isDark?: boolean;
+  loading?: boolean;
 }
 
 export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => void }> = ({
@@ -18,7 +19,8 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
   onAddNew,
   viewMode = 'table',
   onCopy,
-  isDark = false
+  isDark = false,
+  loading = false
 }) => {
   const [visiblePasswords, setVisiblePasswords] = useState<Set<number>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -90,34 +92,31 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
   };
 
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && !loading) {
     return (
-      <div className={`rounded-3xl shadow-2xl border p-16 text-center ${
+      <div className={`rounded-2xl shadow-lg border p-8 text-center min-h-[200px] flex flex-col items-center justify-center ${
         isDark
           ? 'bg-slate-800/80 border-slate-700/50'
           : 'bg-white/80 backdrop-blur-sm border-gray-200/50'
       }`}>
-        <div className="relative mb-8">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto animate-pulse ${
-            isDark ? 'bg-slate-700' : 'bg-gradient-to-r from-gray-200 to-gray-300'
-          }`}>
-            <Shield className={isDark ? 'text-slate-500' : 'text-gray-400'} size={48} />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full blur-xl animate-pulse delay-500"></div>
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+          isDark ? 'bg-slate-700' : 'bg-gray-100'
+        }`}>
+          <Shield className={isDark ? 'text-slate-500' : 'text-gray-400'} size={24} />
         </div>
-        <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-          Пока нет сохраненных паролей
+        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+          Нет записей
         </h3>
-        <p className={`text-lg mb-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          Добавьте первую запись, чтобы начать управление паролями
+        <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          Попробуйте изменить параметры поиска или добавьте новую запись
         </p>
         {onAddNew && (
           <button
             onClick={onAddNew}
-            className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-semibold shadow-xl hover:shadow-2xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
           >
-            <Plus size={22} />
-            Добавить первый пароль
+            <Plus size={18} />
+            Добавить пароль
           </button>
         )}
       </div>
@@ -470,5 +469,9 @@ export const PasswordTable: React.FC<PasswordTableProps & { onAddNew?: () => voi
     </div>
   );
 
-  return viewMode === 'card' ? <CardView /> : <TableView />;
+  return (
+    <div className="min-h-[400px]">
+      {viewMode === 'card' ? <CardView /> : <TableView />}
+    </div>
+  );
 }

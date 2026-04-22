@@ -1,3 +1,4 @@
+import logging
 from ninja import Router
 from ninja.security import django_auth
 from django.contrib.auth import authenticate
@@ -13,7 +14,9 @@ import json
 from config.ninja_auth import jwt_auth
 from ninja.errors import HttpError
 
-from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutSchema, RefreshTokenSchema
+logger = logging.getLogger(__name__)
+
+from apps.user.dto.schema import LoginDTO, UserDTO, LoginResponseSchema, LogoutSchema
 
 router = Router()
 
@@ -57,18 +60,15 @@ def login(request, data: LoginDTO):
         else:
             raise HttpError(400, "Аккаунт деактивирован")
     else:
+        logger.warning(f"Failed login attempt for user: {data.username}")
         raise HttpError(401, "Неверные учетные данные")
 
 @router.post("/refresh", tags=["Аутентификация"])
-def refresh_token(request, data: RefreshTokenSchema = None):
+def refresh_token(request):
     """Обновление токена через httpOnly cookie"""
     try:
-        # Сначала пробуем получить из body, затем из cookie
-        refresh_token = None
-        if data and data.refresh:
-            refresh_token = data.refresh
-        elif request.COOKIES.get('refresh_token'):
-            refresh_token = request.COOKIES.get('refresh_token')
+        # Получаем refresh token только из cookie
+        refresh_token = request.COOKIES.get('refresh_token')
         
         if not refresh_token:
             raise HttpError(400, "Refresh token не предоставлен")

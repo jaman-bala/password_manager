@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { PasswordEntry, PasswordFormData, Category, PaginatedResponse, PaginationParams } from '../types/Password';
 import { useAuth } from './useAuth';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8002';
+const API_BASE_URL = '/api';
 
 interface APIResponse<T> {
   data?: T;
@@ -10,7 +10,7 @@ interface APIResponse<T> {
 }
 
 export const usePasswordAPI = () => {
-  const { refreshAccessToken } = useAuth();
+  const { isAuthenticated, refreshAccessToken } = useAuth();
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,15 +23,16 @@ export const usePasswordAPI = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Базовые заголовки без токена (куки отправляются автоматически)
+  // Базовые заголовки
   const getHeaders = () => ({
     'Content-Type': 'application/json',
   });
 
-  // Загрузить все категории
-  const fetchCategories = async () => {
+  // Загрузить все категории (кэш на бэкенде)
+  const fetchCategories = useCallback(async () => {
+    setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/index/categories`, {
+      const response = await fetch(`${API_BASE_URL}/index/categories`, {
         headers: getHeaders(),
         credentials: 'include',
       });
@@ -41,12 +42,12 @@ export const usePasswordAPI = () => {
       }
       const data = await response.json();
       setCategories(data);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
+    } catch {
+      // Silently fail - categories will remain empty
     }
-  };
+  }, []);
 
-  // Загрузить пароли с пагинацией
+  // Загрузить пароли с пагинацией (кэш на бэкенде)
   const fetchEntries = useCallback(async (params?: PaginationParams) => {
     const currentPage = params?.page || page;
     const currentLimit = params?.limit || limit;
@@ -64,7 +65,7 @@ export const usePasswordAPI = () => {
         queryParams.append('search', currentSearch);
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/index/products?${queryParams}`, {
+      const response = await fetch(`${API_BASE_URL}/index/products?${queryParams}`, {
         headers: getHeaders(),
         credentials: 'include',
       });
@@ -74,8 +75,7 @@ export const usePasswordAPI = () => {
         if (!refreshed) {
           throw new Error('Authentication failed');
         }
-        // Повторяем запрос с новым токеном
-        const retryResponse = await fetch(`${API_BASE_URL}/api/index/products?${queryParams}`, {
+        const retryResponse = await fetch(`${API_BASE_URL}/index/products?${queryParams}`, {
           headers: getHeaders(),
           credentials: 'include',
         });
@@ -101,7 +101,6 @@ export const usePasswordAPI = () => {
       setPage(data.page);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка загрузки данных');
-      console.error('Error fetching entries:', err);
     } finally {
       setLoading(false);
     }
@@ -134,7 +133,7 @@ export const usePasswordAPI = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/index/categories`, {
+      const response = await fetch(`${API_BASE_URL}/index/categories`, {
         method: 'POST',
         headers: getHeaders(),
         credentials: 'include',
@@ -146,7 +145,7 @@ export const usePasswordAPI = () => {
         if (!refreshed) {
           throw new Error('Authentication failed');
         }
-        const retryResponse = await fetch(`${API_BASE_URL}/api/index/categories`, {
+        const retryResponse = await fetch(`${API_BASE_URL}/index/categories`, {
           method: 'POST',
           headers: getHeaders(),
           credentials: 'include',
@@ -181,7 +180,7 @@ export const usePasswordAPI = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/index/categories/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/index/categories/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
         credentials: 'include',
@@ -192,7 +191,7 @@ export const usePasswordAPI = () => {
         if (!refreshed) {
           throw new Error('Authentication failed');
         }
-        const retryResponse = await fetch(`${API_BASE_URL}/api/index/categories/${id}`, {
+        const retryResponse = await fetch(`${API_BASE_URL}/index/categories/${id}`, {
           method: 'DELETE',
           headers: getHeaders(),
           credentials: 'include',
@@ -209,6 +208,7 @@ export const usePasswordAPI = () => {
       }
 
       setCategories(prev => prev.filter(cat => cat.id !== id));
+      fetchCategories(); // Refresh categories after delete
       return { data: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка удаления категории';
@@ -224,7 +224,7 @@ export const usePasswordAPI = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/index/products`, {
+      const response = await fetch(`${API_BASE_URL}/index/products`, {
         method: 'POST',
         headers: getHeaders(),
         credentials: 'include',
@@ -236,7 +236,7 @@ export const usePasswordAPI = () => {
         if (!refreshed) {
           throw new Error('Authentication failed');
         }
-        const retryResponse = await fetch(`${API_BASE_URL}/api/index/products`, {
+        const retryResponse = await fetch(`${API_BASE_URL}/index/products`, {
           method: 'POST',
           headers: getHeaders(),
           credentials: 'include',
@@ -256,7 +256,7 @@ export const usePasswordAPI = () => {
       }
 
       const result = await response.json();
-      fetchEntries();
+      fetchEntries(); // Refresh after mutation
       return { data: result };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка создания записи';
@@ -272,7 +272,7 @@ export const usePasswordAPI = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/index/products/${id}`, {
         method: 'PUT',
         headers: getHeaders(),
         credentials: 'include',
@@ -284,7 +284,7 @@ export const usePasswordAPI = () => {
         if (!refreshed) {
           throw new Error('Authentication failed');
         }
-        const retryResponse = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
+        const retryResponse = await fetch(`${API_BASE_URL}/index/products/${id}`, {
           method: 'PUT',
           headers: getHeaders(),
           credentials: 'include',
@@ -294,7 +294,7 @@ export const usePasswordAPI = () => {
           throw new Error(`HTTP error! status: ${retryResponse.status}`);
         }
         const result = await retryResponse.json();
-        setEntries(prev => prev.map(entry => entry.id === parseInt(id) ? result : entry));
+        fetchEntries(); // Refresh after mutation
         return { data: result };
       }
 
@@ -303,7 +303,7 @@ export const usePasswordAPI = () => {
       }
 
       const result = await response.json();
-      setEntries(prev => prev.map(entry => entry.id === parseInt(id) ? result : entry));
+      fetchEntries(); // Refresh after mutation
       return { data: result };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка обновления записи';
@@ -319,7 +319,7 @@ export const usePasswordAPI = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/index/products/${id}`, {
         method: 'DELETE',
         headers: getHeaders(),
         credentials: 'include',
@@ -330,7 +330,7 @@ export const usePasswordAPI = () => {
         if (!refreshed) {
           throw new Error('Authentication failed');
         }
-        const retryResponse = await fetch(`${API_BASE_URL}/api/index/products/${id}`, {
+        const retryResponse = await fetch(`${API_BASE_URL}/index/products/${id}`, {
           method: 'DELETE',
           headers: getHeaders(),
           credentials: 'include',
@@ -338,9 +338,7 @@ export const usePasswordAPI = () => {
         if (!retryResponse.ok) {
           throw new Error(`HTTP error! status: ${retryResponse.status}`);
         }
-        setEntries(prev => prev.filter(entry => entry.id !== parseInt(id)));
-        // Refresh to maintain correct pagination
-        fetchEntries();
+        fetchEntries(); // Refresh after mutation
         return { data: true };
       }
 
@@ -348,8 +346,7 @@ export const usePasswordAPI = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      setEntries(prev => prev.filter(entry => entry.id !== parseInt(id)));
-      fetchEntries();
+      fetchEntries(); // Refresh after mutation
       return { data: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка удаления записи';
@@ -375,9 +372,11 @@ export const usePasswordAPI = () => {
 
   // Загрузить данные при инициализации
   useEffect(() => {
-    fetchCategories();
-    fetchEntries();
-  }, []);
+    if (isAuthenticated) {
+      fetchCategories();
+      fetchEntries();
+    }
+  }, [isAuthenticated, fetchCategories, fetchEntries]);
 
   return {
     entries,

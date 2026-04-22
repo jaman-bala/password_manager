@@ -28,7 +28,7 @@ def health_check(request):
 
 # Authentication routes (без аутентификации)
 api.add_router(
-    "api/auth",  # префикс для аутентификации
+    "auth",  # префикс для аутентификации
     auth_router,
     tags=["Аутентификация"],
     auth=None,  # Отключаем аутентификацию для эндпоинтов входа
@@ -36,14 +36,14 @@ api.add_router(
 
 # User routes
 api.add_router(
-    "api/user",  # префикс для пользователей
+    "user",  # префикс для пользователей
     user_router,
     tags=["Пользователи"],
 )
 
 # Product routes
 api.add_router(
-    "api/index",  # префикс для продуктов
+    "index",  # префикс для продуктов
     product_router,
     tags=["Главная страница"],
 )

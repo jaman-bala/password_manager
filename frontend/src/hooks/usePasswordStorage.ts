@@ -14,8 +14,8 @@ export const usePasswordStorage = () => {
           updatedAt: new Date(entry.updatedAt)
         }));
         setEntries(parsedEntries);
-      } catch (error) {
-        console.error('Error loading stored passwords:', error);
+      } catch {
+        // Invalid stored data - start fresh
       }
     }
   }, []);

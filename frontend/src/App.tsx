@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Shield, Sparkles, Lock, Key, AlertCircle, LogOut, User, LayoutGrid, Table2, Sun, Moon } from 'lucide-react';
 import { PasswordTable } from './components/PasswordTable';
 import { PasswordForm } from './components/PasswordForm';
@@ -44,11 +44,32 @@ function App() {
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
   };
 
-  // Обработчик поиска с серверной пагинацией
+  // Debounce ref for search
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Обработчик поиска с серверной пагинацией (с debounce)
   const handleSearch = (query: string) => {
     setLocalSearchQuery(query);
-    search(query);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(() => {
+      search(query);
+    }, 300); // 300ms debounce
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Показываем загрузку или форму входа
   if (authLoading) {
@@ -210,26 +231,22 @@ function App() {
           </div>
         </div>
 
-        {/* Error Message */}
+        {/* Error Message - Fixed position to avoid layout shift */}
         {error && (
-          <div className="mb-6 animate-fade-in">
-            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 shadow-lg">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="text-red-500" size={20} />
-                <p className="text-red-700 font-medium">{error}</p>
-              </div>
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in max-w-md w-full mx-4">
+            <div className="bg-red-500 text-white rounded-xl px-4 py-3 shadow-xl flex items-center gap-3">
+              <AlertCircle size={20} />
+              <p className="font-medium text-sm flex-1">{error}</p>
             </div>
           </div>
         )}
 
-        {/* Loading Indicator */}
+        {/* Loading Indicator - Fixed position to avoid layout shift */}
         {loading && (
-          <div className="mb-6 animate-fade-in">
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 shadow-lg">
-              <div className="flex items-center gap-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                <p className="text-blue-700 font-medium">Загрузка данных...</p>
-              </div>
+          <div className="fixed top-4 right-4 z-50 animate-fade-in">
+            <div className="bg-blue-600 text-white rounded-xl px-4 py-2 shadow-xl flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span className="font-medium text-sm">Загрузка...</span>
             </div>
           </div>
         )}
@@ -283,26 +300,30 @@ function App() {
           </button>
         </div>
 
-        {/* Results count */}
-        {(localSearchQuery || selectedCategoryId) && (
-          <div className="mb-8 animate-fade-in">
-            <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-              <p className="text-gray-700 font-medium">
-                Найдено записей: <span className="font-medium">{filteredEntries.length}</span>
-                {localSearchQuery && (
-                  <span className="ml-2">
-                    по запросу "<span className="font-medium">{localSearchQuery}</span>"
-                  </span>
-                )}
-                {selectedCategoryId && categories.find(c => c.id === selectedCategoryId) && (
-                  <span className="ml-2">
-                    в категории "<span className="font-medium">{categories.find(c => c.id === selectedCategoryId)?.name}</span>"
-                  </span>
-                )}
-              </p>
+        {/* Results count - Always visible to prevent layout shift */}
+        <div className="mb-8 h-14">
+          {(localSearchQuery || selectedCategoryId) ? (
+            <div className="animate-fade-in">
+              <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+                <p className="text-gray-700 font-medium">
+                  Найдено записей: <span className="font-medium">{total}</span>
+                  {localSearchQuery && (
+                    <span className="ml-2">
+                      по запросу "<span className="font-medium">{localSearchQuery}</span>"
+                    </span>
+                  )}
+                  {selectedCategoryId && categories.find(c => c.id === selectedCategoryId) && (
+                    <span className="ml-2">
+                      в категории "<span className="font-medium">{categories.find(c => c.id === selectedCategoryId)?.name}</span>"
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="h-14" /> /* Placeholder to reserve space */
+          )}
+        </div>
 
         {/* Table / Card View */}
         <PasswordTable
@@ -313,6 +334,7 @@ function App() {
           viewMode={viewMode}
           onCopy={() => showToast('Скопировано в буфер обмена!', 'success')}
           isDark={isDark}
+          loading={loading}
         />
 
         {/* Pagination */}
