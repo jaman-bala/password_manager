@@ -167,7 +167,7 @@ def disable_two_factor(request, data: TwoFactorVerifyDTO):
     return JsonResponse({"success": True, "message": "2FA отключена"})
 
 
-@router.post("/2fa/status", tags=["Безопасность"], auth=jwt_auth)
+@router.get("/2fa/status", tags=["Безопасность"], auth=jwt_auth)
 def two_factor_status(request):
     """Статус 2FA пользователя"""
     user = request.user

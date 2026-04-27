@@ -10,7 +10,7 @@ interface APIResponse<T> {
 }
 
 export const usePasswordAPI = () => {
-  const { isAuthenticated, refreshAccessToken } = useAuth();
+  const { isAuthenticated, refreshAccessToken, logout } = useAuth();
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +73,7 @@ export const usePasswordAPI = () => {
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          logout();
           throw new Error('Authentication failed');
         }
         const retryResponse = await fetch(`${API_BASE_URL}/index/products?${queryParams}`, {
@@ -143,6 +144,7 @@ export const usePasswordAPI = () => {
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          logout();
           throw new Error('Authentication failed');
         }
         const retryResponse = await fetch(`${API_BASE_URL}/index/categories`, {
@@ -189,6 +191,7 @@ export const usePasswordAPI = () => {
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          logout();
           throw new Error('Authentication failed');
         }
         const retryResponse = await fetch(`${API_BASE_URL}/index/categories/${id}`, {
@@ -234,6 +237,7 @@ export const usePasswordAPI = () => {
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          logout();
           throw new Error('Authentication failed');
         }
         const retryResponse = await fetch(`${API_BASE_URL}/index/products`, {
@@ -282,6 +286,7 @@ export const usePasswordAPI = () => {
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          logout();
           throw new Error('Authentication failed');
         }
         const retryResponse = await fetch(`${API_BASE_URL}/index/products/${id}`, {
@@ -328,6 +333,7 @@ export const usePasswordAPI = () => {
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          logout();
           throw new Error('Authentication failed');
         }
         const retryResponse = await fetch(`${API_BASE_URL}/index/products/${id}`, {
