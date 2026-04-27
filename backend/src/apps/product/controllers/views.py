@@ -6,6 +6,7 @@ from django.core.cache import cache
 from django.conf import settings
 from config.ninja_auth import jwt_auth
 
+from apps.organizations.models.vault import VaultAccess
 from apps.product.models.models import ProductOrm, CategoryOrm
 from apps.product.dto.schema import ProductDTO, CategoryDTO, ProductCreateDTO, CategoryCreateDTO, PaginatedProductsResponseSchema
 
@@ -80,7 +81,6 @@ def get_products(request, page: int = 1, limit: int = 20, search: str = ""):
         return cached
 
     # Получаем ID сейфов, к которым у пользователя есть доступ
-    from apps.organizations.models.vault import VaultAccess
     accessible_vault_ids = VaultAccess.objects.filter(user=request.user).values_list('vault_id', flat=True)
 
     # Фильтруем: личные записи ИЛИ записи из доступных сейфов
@@ -92,6 +92,9 @@ def get_products(request, page: int = 1, limit: int = 20, search: str = ""):
 
     if search:
         qs = qs.filter(title__icontains=search) | qs.filter(login__icontains=search) | qs.filter(url__icontains=search)
+
+    # Убеждаемся, что сортировка сохраняется после объединения QuerySet'ов
+    qs = qs.order_by('-created_at')
 
     total = qs.count()
     total_pages = (total + limit - 1) // limit
