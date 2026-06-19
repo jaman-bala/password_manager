@@ -3,17 +3,18 @@ from apps.user.models import User
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from ninja import Router
+from ninja.errors import HttpError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from apps.user.dto.schema import (
     LoginResponseSchema,
-    LoginResponseSchema, 
-    TokenVerifySchema, 
+    TokenVerifySchema,
     TokenVerifyResponseSchema,
-    UserResponseSchema
+    UserResponseSchema,
 )
+from config.ninja_auth import jwt_auth
 
 
 router = Router()
@@ -129,15 +130,11 @@ def verify_token(request, payload: TokenVerifySchema):
         }
 
 
-@router.get("/profile", response=UserResponseSchema, tags=["Пользователь"])
+@router.get("/profile", response=UserResponseSchema, auth=jwt_auth, tags=["Пользователь"])
 def get_user_profile(request):
-    """Получить профиль текущего пользователя (требует аутентификации)"""
-    # This would need authentication middleware
-    # For now, return basic user info if available
-    if hasattr(request, 'user') and request.user.is_authenticated:
-        return {
-            "id": request.user.id,
-            "username": request.user.username,
-            "email": request.user.email,
-        }
-    return None
+    """Получить профиль текущего пользователя"""
+    return {
+        "id": request.user.id,
+        "username": request.user.username,
+        "email": request.user.email,
+    }
