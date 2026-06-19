@@ -14,11 +14,13 @@ import { FolderTree } from './components/FolderTree';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { usePasswordAPI } from './hooks/usePasswordAPI';
 import { useAuth } from './hooks/useAuth';
+import { useAttachments } from './hooks/useAttachments';
 import { PasswordEntry, PasswordFormData } from './types/Password';
 
 function App() {
   const { isAuthenticated, user, logout, isLoading: authLoading } = useAuth();
   const { entries, categories, loading, error, addEntry, updateEntry, deleteEntry, createCategory, deleteCategory, page, totalPages, total, limit, goToPage, search } = usePasswordAPI();
+  const { uploadAttachments } = useAttachments();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
   const [localSearchQuery, setLocalSearchQuery] = useState('');
@@ -100,12 +102,21 @@ function App() {
     ? entries.filter(entry => entry.category?.id === selectedCategoryId)
     : entries;
 
-  const handleFormSubmit = async (data: PasswordFormData) => {
+  const handleFormSubmit = async (data: PasswordFormData, files: File[]) => {
     if (editingEntry) {
       const result = await updateEntry(editingEntry.id.toString(), data);
       if (result.error) {
         showToast(`Ошибка обновления: ${result.error}`, 'error');
         return;
+      }
+      if (files.length > 0) {
+        const uploadResult = await uploadAttachments(editingEntry.id, files);
+        if (uploadResult.error) {
+          showToast(`Запись сохранена, но файлы не загружены: ${uploadResult.error}`, 'error');
+          setIsFormOpen(false);
+          setEditingEntry(null);
+          return;
+        }
       }
       showToast('Запись успешно обновлена!', 'success');
     } else {
@@ -113,6 +124,15 @@ function App() {
       if (result.error) {
         showToast(`Ошибка создания: ${result.error}`, 'error');
         return;
+      }
+      if (files.length > 0 && result.data?.id) {
+        const uploadResult = await uploadAttachments(result.data.id, files);
+        if (uploadResult.error) {
+          showToast(`Запись создана, но файлы не загружены: ${uploadResult.error}`, 'error');
+          setIsFormOpen(false);
+          setEditingEntry(null);
+          return;
+        }
       }
       showToast('Пароль успешно добавлен!', 'success');
     }

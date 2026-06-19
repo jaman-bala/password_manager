@@ -1,6 +1,6 @@
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.urls import path
 from ninja import NinjaAPI
 from ninja.security import django_auth
@@ -8,6 +8,7 @@ from ninja.security import django_auth
 from apps.product.controllers.views import router as product_router
 from apps.product.controllers.folder_views import router as folder_router
 from apps.product.controllers.import_export_views import router as import_export_router
+from apps.product.controllers.attachment_views import router as attachment_router
 from apps.user.controllers.views import router as user_router
 from apps.user.controllers.auth_views import router as auth_router
 from apps.user.controllers.security_views import router as security_router
@@ -16,12 +17,36 @@ from config.ninja_auth import jwt_auth
 
 from . import settings
 
-# Создаем API с правильной OpenAPI конфигурацией
+def scalar_docs(request):
+    html = """<!doctype html>
+<html lang="ru">
+  <head>
+    <title>PasswordManager API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>body { margin: 0; }</style>
+  </head>
+  <body>
+    <script
+      id="api-reference"
+      data-url="/openapi.json"
+      data-configuration='{
+        "theme": "purple",
+        "layout": "modern",
+        "defaultHttpClient": {"targetKey": "python", "clientKey": "requests"}
+      }'
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>"""
+    return HttpResponse(html)
+
+
 api = NinjaAPI(
     title="PasswordManager API",
     version="1.0.0",
     description="API для управления паролями",
-    # Убираем глобальную аутентификацию, будем добавлять на каждый эндпоинт
+    docs_url=None,  # отключаем встроенный Swagger
 )
 
 @api.get("/health", tags=["Система"])
@@ -80,12 +105,20 @@ api.add_router(
     tags=["Главная страница"],
 )
 
+# Attachment routes (nested under index to keep consistent with product URLs)
+api.add_router(
+    "index",
+    attachment_router,
+    tags=["Вложения"],
+)
+
 def health_view(request):
     """Простой health check для Docker"""
     return JsonResponse({"status": "healthy"})
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("docs/", scalar_docs, name="scalar_docs"),
     path("health/", health_view, name="health"),
     path("", api.urls),
 ]
