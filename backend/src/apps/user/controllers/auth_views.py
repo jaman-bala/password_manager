@@ -46,7 +46,7 @@ def login(request, data: LoginDTO):
                         # Проверяем резервные коды
                         if data.two_factor_code not in two_factor.backup_codes:
                             logger.warning(f"Failed 2FA attempt for user: {data.username}")
-                            raise HttpError(401, "Неверный код 2FA")
+                            raise HttpError(401, "Неверный код двухфакторной аутентификации. Введите актуальный код из приложения-аутентификатора или резервный код.")
                         else:
                             # Удаляем использованный резервный код
                             two_factor.backup_codes.remove(data.two_factor_code)
@@ -86,10 +86,10 @@ def login(request, data: LoginDTO):
 
             return response
         else:
-            raise HttpError(400, "Аккаунт деактивирован")
+            raise HttpError(403, "Аккаунт заблокирован. Обратитесь к администратору.")
     else:
         logger.warning(f"Failed login attempt for user: {data.username}")
-        raise HttpError(401, "Неверные учетные данные")
+        raise HttpError(401, "Неверное имя пользователя или пароль")
 
 @router.post("/refresh", tags=["Аутентификация"])
 def refresh_token(request):
