@@ -11,6 +11,26 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Django Ninja кладёт текст ошибки в `detail` (строка, а для ошибок валидации — массив),
+// rate limit middleware — в `error`. Если внятного текста нет, подбираем по статусу.
+const getLoginErrorMessage = async (response: Response): Promise<string> => {
+  try {
+    const body = await response.json();
+    const message = typeof body?.detail === 'string' ? body.detail : body?.error;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  } catch {
+    // Тело не JSON (например, HTML-страница 502 от nginx) — используем текст по статусу
+  }
+
+  if (response.status === 401) return 'Неверное имя пользователя или пароль';
+  if (response.status === 422) return 'Заполните имя пользователя и пароль';
+  if (response.status === 429) return 'Слишком много попыток входа. Подождите несколько минут и попробуйте снова.';
+  if (response.status >= 500) return 'Сервер временно недоступен. Попробуйте позже.';
+  return 'Не удалось войти. Попробуйте ещё раз.';
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -84,8 +104,7 @@ export const useAuthProvider = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        return { success: false, error: errorData.error || 'Ошибка входа' };
+        return { success: false, error: await getLoginErrorMessage(response) };
       }
 
       const responseData = await response.json();
